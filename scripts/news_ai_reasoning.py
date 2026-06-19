@@ -54,25 +54,49 @@ def prepare_news_prompt(news_items: list[dict]) -> str:
 
 def analyze_news(news_items: list[dict], output_path: str = None) -> dict:
     """
-    准备新闻分析提示词并保存，供 Claude Agent 分析。
-    分析结果保存为 JSON 后，pipeline 可直接读取。
+    用 Anthropic API 自动分析新闻。需要 ANTHROPIC_API_KEY 环境变量。
+    若无 API key，则保存提示词等待手动分析。
     """
     prompt = prepare_news_prompt(news_items)
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
 
+    if api_key:
+        try:
+            import anthropic
+            client = anthropic.Anthropic(api_key=api_key)
+            msg = client.messages.create(
+                model="claude-sonnet-4-6",
+                max_tokens=2000,
+                messages=[{"role": "user", "content": prompt + "\n\n只输出JSON，不要其他文字。"}],
+            )
+            text = msg.content[0].text
+            # Extract JSON from response
+            start = text.find("{")
+            end = text.rfind("}") + 1
+            if start >= 0 and end > start:
+                result = json.loads(text[start:end])
+                result["status"] = "auto_analyzed"
+                if output_path:
+                    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+                    with open(output_path, 'w') as f:
+                        json.dump(result, f, ensure_ascii=False, indent=2)
+                print(f"AI分析完成: {len(result.get('impact_events',[]))} 条影响事件")
+                return result
+        except Exception as e:
+            print(f"AI分析失败: {e}，降级为手动模式")
+
+    # Fallback: save prompt for manual analysis
     result = {
         "date": datetime.now().strftime("%Y-%m-%d"),
         "news_count": len(news_items),
         "prompt": prompt,
         "status": "ready_for_agent",
-        "instruction": "将此提示词发送给Claude Agent进行分析，将返回的JSON保存到同目录的 news_ai_result.json",
     }
-
     if output_path:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         with open(output_path, 'w') as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
-        print(f"提示词已保存: {output_path}")
-
+        print(f"无API key，提示词已保存: {output_path}")
     return result
 
 
