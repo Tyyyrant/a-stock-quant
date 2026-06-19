@@ -247,6 +247,19 @@ BOTTLENECK_MATERIALS = {
         "archetypes": ["工艺壁垒"],
     },
     # ═══ EDA/工业软件 ═══
+    "磷化铟(InP)": {
+        "category": "光通信材料",
+        "layer": "L5上游材料",
+        "keywords": ["磷化铟", "InP", "铟磷", "铟材", "锗业", "铟"],
+        "exclude_keywords": ["铟矿", "铟锡"],
+        "archetypes": ["单源供应商", "国产替代锁定", "产能瓶颈"],
+    },
+    "薄膜铌酸锂(TFLN)": {
+        "category": "光通信材料",
+        "layer": "L5上游材料",
+        "keywords": ["铌酸锂", "钽酸锂", "光波导", "铌酸", "光电芯片", "TFLN", "LNOI"],
+        "archetypes": ["工艺壁垒", "国产替代锁定"],
+    },
     "EDA/IP": {
         "category": "工业软件",
         "layer": "L5上游材料",
@@ -259,7 +272,8 @@ BOTTLENECK_MATERIALS = {
 BOTTLENECK_TO_SECTOR = {
     "半导体": ["硅材料/硅片", "光刻胶", "电子特气", "溅射靶材", "湿电子化学品",
               "CMP抛光材料", "高纯石英", "光掩模/掩膜版", "半导体设备", "半导体零部件",
-              "光刻机零部件", "IGBT/SiC", "EDA/IP", "钨材料(电子特气上游)"],
+              "光刻机零部件", "IGBT/SiC", "EDA/IP", "钨材料(电子特气上游)",
+              "磷化铟(InP)", "薄膜铌酸锂(TFLN)"],
     "PCB": ["铜箔", "覆铜板/CCL", "高频高速材料", "PCB油墨", "PCB制造", "散热材料"],
     "元件": ["MLCC", "电感/磁材", "晶振/谐振器", "高速连接器", "PCB制造"],
     "先进封装": ["封装基板/载板", "环氧塑封料/EMC", "底部填充胶/Underfill",
@@ -465,6 +479,7 @@ def supplement_known_producers(materials_found: dict) -> dict:
         "先进封装": "先进封装",
         "PCB": "PCB制造",
         "EDA软件": "EDA/IP",
+        "磷化铟": "磷化铟(InP)", "薄膜铌酸锂(TFLN)": "薄膜铌酸锂(TFLN)",
     }
 
     added_count = 0

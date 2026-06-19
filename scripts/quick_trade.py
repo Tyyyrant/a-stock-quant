@@ -412,45 +412,26 @@ def deep_analyze(code, name, sector, target_date, kline_df=None, diagnosis=None)
         signal = "PASS"
         reasons_bear.append("⚠ST股")
 
-    # ==== 《股是股非》C区风险硬过滤 + 量能体叠加加分 ====
+    # ==== 《股是股非》九大战法过滤 (C区/出货/量价异动/洗盘/缺口) ====
     try:
-        from zhangting_strategies import classify_abc_zone, detect_distribution_signal
-        from zhangting_strategies import detect_volume_price_anomaly, detect_ma_realignment, detect_washout_reversal
-
-        abc = classify_abc_zone(kline_df)
-        if abc["zone"] == "C":
+        from warfare_patterns import apply_warfare_filters
+        override, boost, wz_reasons = apply_warfare_filters(code, kline_df)
+        if override == "PASS":
             signal = "PASS"
-            reasons_bear.append(f"⚠C区风险({abc['zone_reason']})")
-            print(f"    [股是股非] {code} C区毙: {abc['zone_reason']}")
-
-        # 出货检测 — 高位倒灌/阳奉阴违/放量滞涨
-        dist = detect_distribution_signal(kline_df)
-        if dist["is_distribution"]:
-            for ds in dist["signals"]:
-                if ds["severity"] == "高":
-                    signal = "PASS"
-                bearish += 2
-                reasons_bear.append(f"⚠{ds['type']}: {ds['desc']}")
-            print(f"    [股是股非] {code} 出货信号: {[d['type'] for d in dist['signals']]}")
-
-        # 量价异动 + 均线归位 加分
-        anomaly = detect_volume_price_anomaly(kline_df)
-        if anomaly["has_anomaly"]:
-            bullish += anomaly["strength"] // 2
-            reasons_bull.append(f"量价异动: {anomaly['type']}")
-            print(f"    [股是股非] {code} 量价异动+{anomaly['strength']//2}: {anomaly['type']}")
-
-        ma_re = detect_ma_realignment(kline_df)
-        if ma_re["realigning"]:
-            bullish += 3
-            reasons_bull.append(f"均线归位({ma_re['reason']})")
-
-        # 洗盘反包加分
-        washout = detect_washout_reversal(kline_df)
-        if washout["is_washout"]:
-            bullish += 4
-            reasons_bull.append(f"洗盘反包(强度{washout['strength']:.0f})")
-            print(f"    [股是股非] {code} 洗盘反包+4 强度{washout['strength']:.0f}")
+            for direction, reason in wz_reasons:
+                reasons_bear.append(reason)
+            print(f"    [战法] {code} C区/出货毙: {'; '.join(r for _,r in wz_reasons)}")
+        else:
+            for direction, reason in wz_reasons:
+                if direction == "bull":
+                    bullish += 1
+                    reasons_bull.append(reason)
+                else:
+                    bearish += 1
+                    reasons_bear.append(reason)
+            if boost != 0:
+                bullish += boost // 3
+                print(f"    [战法] {code} 股是股非战法{boost:+d}: {'; '.join(r for _,r in wz_reasons)}")
     except Exception:
         pass
 

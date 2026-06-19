@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 """
-四大战法信号识别器 — 严格按文档公式实现
+九大战法信号识别器 — 《股是股非》全书体系
 
 1. 逼空星线: MACD强势 + 缩量星线洗盘 + 等次日大阳确认 (仅主板600/000)
 2. 猎取B区: MA10首次金叉MA30趋势反转
 3. A区起涨: 量能MA7金叉MA35 + 逐日放量 + 价站翘MA10 (作者自定义"A区")
 4. 拉高抢筹: 量比>2 + 涨幅>4.5% + 收高位98% + 站MA5 + 均线多头 (仅主板600/000)
+5. C区风险过滤: 高位倒灌/均线死叉/深度破位 → 硬过滤
+6. 量价异动+均线归位: 全书核心变盘信号 (底部放量突破/地量倍量/缩量回踩)
+7. 单日强硬洗盘: 前日大阴→次日阳包阴+量确认 = 反包买点
+8. 缺口模式: 向上缺口三日不补=强势 / 向下缺口=风险
+9. 高位倒灌出货: 60日高位高开低走放量/阳奉阴违/放量滞涨
 """
 
 import numpy as np
@@ -227,7 +232,272 @@ def detect_all_warfare(code: str, df: pd.DataFrame) -> dict:
         "wait_for": "结合颈线/箱体突破，注意量时空大压" if lg_triggered else "",
     }
 
+    # ================================================================
+    # 5. C区风险过滤 (《股是股非》第四章·风险回避)
+    # ================================================================
+    cz_met = []; cz_miss = []
+    c_signals = 0
+
+    # C1: 高位放量收阴(倒灌) — 距60日高<8% + 收阴 + 量>1.3倍
+    hhv60 = np.max(h[-60:])
+    near_high = c[idx] > hhv60 * 0.92
+    is_yin = c[idx] < o[idx]
+    vol_20_avg = np.mean(v[-21:-1])
+    vol_ratio_c = v[idx] / max(vol_20_avg, 1)
+    if near_high and is_yin and vol_ratio_c > 1.3:
+        c_signals += 2; cz_met.append(f"高位放量收阴(量{vol_ratio_c:.1f}x)")
+    else:
+        cz_miss.append("高位倒灌(否)")
+
+    # C2: 均线死叉 + 价在线下
+    if ma5[idx] < ma10[idx] and c[idx] < ma10[idx]:
+        c_signals += 2; cz_met.append("均线死叉+价在线下")
+    else:
+        cz_miss.append("死叉(否)")
+
+    # C3: 深度破位 (>8%低于MA20)
+    price_vs_ma20 = (c[idx] / ma20[idx] - 1) * 100 if ma20[idx] > 0 else 0
+    if price_vs_ma20 < -8:
+        c_signals += 1; cz_met.append(f"深度破位({price_vs_ma20:.0f}%)")
+    else:
+        cz_miss.append(f"破位(否:{price_vs_ma20:.0f}%)")
+
+    # C4: 均线下行
+    ma5_rising_w = ma5[idx] > ma5[idx-1] if idx >= 1 else False
+    ma10_rising_w = ma10[idx] > ma10[idx-1] if idx >= 1 else False
+    if not ma5_rising_w and not ma10_rising_w:
+        c_signals += 1; cz_met.append("均线下行趋势")
+    else:
+        cz_miss.append("下行(否)")
+
+    cz_triggered = c_signals >= 2
+    result["C区风险"] = {
+        "triggered": cz_triggered,
+        "conditions_met": cz_met,
+        "conditions_missed": cz_miss,
+        "score": -8 if cz_triggered else 0,
+        "detail": " | ".join(cz_met) if cz_met else "安全",
+        "action": "硬过滤·不参与" if cz_triggered else "",
+    }
+
+    # ================================================================
+    # 6. 量价异动+均线归位 (《股是股非》第三章·核心变盘信号)
+    # ================================================================
+    yj_met = []; yj_miss = []; yj_score = 0
+
+    # 底部放量突破MA20
+    low_20d = np.min(c[-21:-1])
+    if c[idx] > ma20[idx] and c[idx-1] <= ma20[idx] and vol_ratio_c > 1.5 and c[idx] > low_20d * 1.05:
+        yj_score += 7; yj_met.append(f"底部放量突破MA20(量{vol_ratio_c:.1f}x)")
+    else:
+        yj_miss.append("底突破(否)")
+
+    # 放量突破前高
+    hhv20 = np.max(h[-21:-1])
+    if c[idx] > hhv20 and vol_ratio_c > 1.3:
+        yj_score += 6; yj_met.append(f"放量突破前高(量{vol_ratio_c:.1f}x)")
+    else:
+        yj_miss.append("前高突破(否)")
+
+    # 地量后倍量
+    vol_min_20 = np.min(v[-21:-1])
+    if v[idx-1] <= vol_min_20 * 1.1 and v[idx] > v[idx-1] * 1.8:
+        yj_score += 5; yj_met.append(f"地量后倍量({v[idx]/v[idx-1]:.1f}x)")
+    else:
+        yj_miss.append("地量倍量(否)")
+
+    # 缩量回踩MA20不破
+    if vol_ratio_c < 0.6 and c[idx] > ma20[idx] * 0.98 and c[idx] > c[idx-1]:
+        yj_score += 4; yj_met.append(f"缩量回踩MA20(量{vol_ratio_c:.1f}x)")
+    else:
+        yj_miss.append("回踩不破(否)")
+
+    # 均线归位: 此前纠缠→多头有序
+    ma5_5d = np.mean(c[-6:-1])
+    ma10_5d = np.mean(c[-11:-1])
+    now_bull = ma5[idx] > ma10[idx] > ma20[idx]
+    past_bull = ma5_5d > ma10_5d > ma20[idx]
+    if now_bull and not past_bull:
+        yj_score += 5; yj_met.append("均线从散乱归位多头")
+    elif now_bull:
+        yj_met.append("均线保持多头")
+    else:
+        yj_miss.append("均线未归位")
+    # 价格突破MA20归位
+    if c[idx] > ma20[idx] and c[idx-1] <= ma20[idx]:
+        yj_score += 5; yj_met.append("价格突破MA20归位")
+
+    yj_triggered = yj_score >= 5
+    result["量价异动均线归位"] = {
+        "triggered": yj_triggered,
+        "conditions_met": yj_met,
+        "conditions_missed": yj_miss,
+        "score": min(yj_score, 15),
+        "detail": " | ".join(yj_met) if yj_met else "未触发",
+        "action": "全书核心变盘信号·重点介入" if yj_triggered else "",
+    }
+
+    # ================================================================
+    # 7. 单日强硬洗盘 (《股是股非》第五章③)
+    # ================================================================
+    xp_met = []; xp_miss = []
+
+    # 前日大阴: 跌>4%
+    prev_chg = (c[idx-1] / c[idx-2] - 1) * 100 if idx >= 2 else 0
+    prev_big_yin = prev_chg < -4
+    (xp_met if prev_big_yin else xp_miss).append(f"前日跌幅{prev_chg:.1f}%")
+
+    # 今日阳包阴: 收阳 + 收盘>前日开盘
+    today_yang = c[idx] > o[idx]
+    engulf = c[idx] > o[idx-1] if idx >= 1 else False
+    (xp_met if (today_yang and engulf) else xp_miss).append(
+        f"{'阳包阴' if (today_yang and engulf) else '未反包'}")
+
+    # 量确认: 今日量>前日量
+    vol_confirm = v[idx] > v[idx-1] if idx >= 1 else False
+    (xp_met if vol_confirm else xp_miss).append("量确认" if vol_confirm else "量未确认")
+
+    xp_triggered = prev_big_yin and today_yang and engulf and vol_confirm
+    engulf_pct = (c[idx] / o[idx-1] - 1) * 100 if idx >= 1 else 0
+    result["单日洗盘反包"] = {
+        "triggered": xp_triggered,
+        "conditions_met": xp_met,
+        "conditions_missed": xp_miss,
+        "score": 10 + min(engulf_pct * 2, 10) if xp_triggered else 0,
+        "detail": " | ".join(xp_met) if xp_met else "未触发",
+        "action": f"反包{engulf_pct:.0f}%·最佳买点" if xp_triggered else "",
+    }
+
+    # ================================================================
+    # 8. 缺口模式 (《股是股非》第五章④)
+    # ================================================================
+    qk_met = []; qk_miss = []
+
+    # 向上缺口: 今日最低 > 昨日最高
+    gap_up = l[idx] > h[idx-1] if idx >= 1 else False
+    gap_up_pct = (l[idx] / h[idx-1] - 1) * 100 if gap_up else 0
+
+    # 三日向上缺口不回补
+    gap_up_3d = l[idx-2] > h[idx-3] if idx >= 3 else False
+    gap_filled = gap_up_3d and min(l[-2:]) < h[-3]
+
+    # 向下缺口
+    gap_down = h[idx] < l[idx-1] if idx >= 1 else False
+    gap_down_pct = (h[idx] / l[idx-1] - 1) * 100 if gap_down else 0
+
+    if gap_up:
+        qk_met.append(f"向上缺口+{gap_up_pct:.1f}%")
+    elif gap_up_3d and not gap_filled:
+        qk_met.append(f"三日不补缺口·强势确认")
+    else:
+        qk_miss.append("上缺口(否)")
+
+    if gap_down:
+        qk_met.append(f"⚠向下缺口{gap_down_pct:.1f}%")
+    else:
+        qk_miss.append("下缺口(否)")
+
+    qk_triggered = gap_up or (gap_up_3d and not gap_filled)
+    result["缺口模式"] = {
+        "triggered": qk_triggered,
+        "conditions_met": qk_met,
+        "conditions_missed": qk_miss,
+        "score": 8 if qk_triggered else (-6 if gap_down else 0),
+        "detail": " | ".join(qk_met) if qk_met else "无缺口",
+        "action": "强势突破·跟进" if qk_triggered else ("风险缺口·回避" if gap_down else ""),
+    }
+
+    # ================================================================
+    # 9. 高位倒灌出货 (《股是股非》第六章·卖出信号)
+    # ================================================================
+    cg_met = []; cg_miss = []; cg_penalty = 0
+
+    # 高位倒灌: 60日高位+高开低走+放量
+    if near_high and o[idx] > c[idx] and c[idx] < c[idx-1] and vol_ratio_c > 1.3:
+        cg_penalty += 8; cg_met.append(f"⚠高位倒灌({vol_ratio_c:.1f}x)")
+    else:
+        cg_miss.append("倒灌(否)")
+
+    # 阳奉阴违: 收阳但低于昨收 + 放量
+    if c[idx] > o[idx] and c[idx] < c[idx-1] and vol_ratio_c > 1.2:
+        cg_penalty += 5; cg_met.append(f"⚠阳奉阴违(量{vol_ratio_c:.1f}x)")
+    else:
+        cg_miss.append("假阳线(否)")
+
+    # 放量滞涨: 量>1.5倍 但 涨幅<1%
+    chg_today = (c[idx] / c[idx-1] - 1) * 100 if idx >= 1 else 0
+    if abs(chg_today) < 1 and vol_ratio_c > 1.5:
+        cg_penalty += 5; cg_met.append(f"⚠放量滞涨(量{vol_ratio_c:.1f}x)")
+    else:
+        cg_miss.append("滞涨(否)")
+
+    cg_triggered = cg_penalty > 0
+    result["高位倒灌出货"] = {
+        "triggered": cg_triggered,
+        "conditions_met": cg_met,
+        "conditions_missed": cg_miss,
+        "score": -cg_penalty,
+        "detail": " | ".join(cg_met) if cg_met else "无出货信号",
+        "action": "减仓/回避" if cg_penalty >= 8 else ("警惕" if cg_triggered else ""),
+    }
+
     return result
+
+
+# ============================================================
+# 便捷函数: 供 quick_trade 直接调用
+# ============================================================
+
+def apply_warfare_filters(code, df):
+    """
+    在 deep_analyze 中应用战法过滤。
+    返回 (signal_override, score_boost, reasons_add)
+
+    signal_override: None=不覆盖, "PASS"=毙掉
+    score_boost: 加减分
+    reasons_add: [(方向, 理由), ...]
+    """
+    w = detect_all_warfare(code, df)
+
+    boost = 0
+    reasons = []
+
+    # C区 → 硬毙
+    if w["C区风险"]["triggered"]:
+        return "PASS", 0, [("bear", f"⚠C区风险: {w['C区风险']['detail']}")]
+
+    # 高位倒灌 → 硬毙 (严重度8)
+    cg = w["高位倒灌出货"]
+    if cg["triggered"] and cg["score"] <= -8:
+        return "PASS", 0, [("bear", f"⚠高位倒灌出货: {cg['detail']}")]
+
+    # 量价异动 + 均线归位 → 加分
+    yj = w["量价异动均线归位"]
+    if yj["triggered"]:
+        boost += yj["score"]
+        reasons.append(("bull", f"量价异动: {yj['detail']}"))
+
+    # 洗盘反包 → 加分
+    xp = w["单日洗盘反包"]
+    if xp["triggered"]:
+        boost += xp["score"]
+        reasons.append(("bull", f"洗盘反包: {xp['detail']}"))
+
+    # 缺口 → 加分/扣分
+    qk = w["缺口模式"]
+    if qk["triggered"]:
+        boost += qk["score"]
+        reasons.append(("bull", f"缺口突破: {qk['detail']}"))
+    elif w["缺口模式"]["score"] < 0:
+        boost += w["缺口模式"]["score"]
+        reasons.append(("bear", f"向下缺口: {qk['detail']}"))
+
+    # 高位出货 → 扣分 (非硬毙)
+    if cg["triggered"] and cg["score"] > -8:
+        boost += cg["score"]
+        reasons.append(("bear", f"出货预警: {cg['detail']}"))
+
+    return None, boost, reasons
 
 
 # ============================================================
