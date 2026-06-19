@@ -92,7 +92,7 @@ for _, row in df.iterrows():
     if dk is None or len(dk) < 60: continue
     dk = dk[dk['date'] <= date]
     w = detect_all_warfare(code, dk)
-    wf_total = sum(w[n]['score'] for n in w)
+    wf_total = sum(w[n]['score'] for n in w if w[n]['triggered'])
     p = identify_all_patterns(dk, ticker=code); v = analyze_volume_price(dk); c = estimate_chip_distribution(dk)
     try: fund = fetch_fundamentals(code, date)
     except: fund = {}
@@ -102,7 +102,7 @@ for _, row in df.iterrows():
     details = []
     for n, clr in [('逼空星线','bsx'),('拉高抢筹','lg'),('A区起涨','aq'),('猎取B区','lb')]:
         s = w[n]['score']
-        if s >= 5: details.append(f'<span class="wf-tag wf-{clr}">{n}:{s}</span>')
+        if w[n]['triggered']: details.append(f'<span class="wf-tag wf-{clr}">{n}:{s}</span>')
     all_picks.append({'code':code,'name':name,'price':price,'chg_pct':round(chg*100,2),
         'k_score':round(p.pattern_score,1),'v_score':v.get('volume_score',0),
         'wf_total':wf_total, 'wf_detail':' '.join(details) if details else '—'})
