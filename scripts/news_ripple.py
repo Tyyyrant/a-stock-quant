@@ -125,7 +125,7 @@ MATERIAL_GRAPH = {
     # ═══════════════════════════════════════════════════════════
     "六氟化钨": {
         "aliases": ["WF6", "六氟"],
-        "category": "电子特气",
+        "category": "钨材料(电子特气上游)",
         "domestic_producers": [
             {"code": "600549", "name": "厦门钨业", "relevance": 0.9},
             {"code": "000657", "name": "中钨高新", "relevance": 0.9},
@@ -146,14 +146,14 @@ MATERIAL_GRAPH = {
         ],
     },
     "钨粉": {
-        "category": "金属粉体",
+        "category": "钨材料(电子特气上游)",
         "domestic_producers": [
             {"code": "002378", "name": "章源钨业", "relevance": 0.9},
             {"code": "002842", "name": "翔鹭钨业", "relevance": 0.8},
         ],
     },
     "钨丝": {
-        "category": "光伏耗材",
+        "category": "钨材料(电子特气上游)",
         "domestic_producers": [
             {"code": "600549", "name": "厦门钨业", "relevance": 0.9},
             {"code": "000657", "name": "中钨高新", "relevance": 0.8},
