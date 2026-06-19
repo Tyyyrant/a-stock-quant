@@ -169,7 +169,7 @@ if bn_picks_from_file:
         if src:
             mat_cats.update(src.split(','))
     if mat_cats:
-        bn_legend = '·'.join(sorted(mat_cats)[:6]) + ' 瓶颈标的'
+        bn_legend = '·'.join(sorted(mat_cats)[:8]) + ' 瓶颈标的'
 
 # ==== Render ====
 def stock_row(s, extra_col=None, extra_style=None):
