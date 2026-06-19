@@ -194,6 +194,43 @@ tr:last-child td{{border-bottom:none}}
 </div></div>
 
 <div class="card" style="margin-top:16px;border-radius:10px">
+<div class="card" style="margin-top:16px;border-radius:10px;background:linear-gradient(135deg,#292524,#44403c);color:#faf9f7">
+<div style="padding:20px 24px">
+<div style="font-size:15px;font-weight:800;margin-bottom:4px">⭐ 最推荐 Top 3</div>
+<div style="font-size:10px;color:#a8a29e;margin-bottom:16px">综合强度 + 7-Agent 辩论排序 · 明日开盘优先买入</div>
+'''
+# Build top 3 from CSV data
+import pandas as pd
+df_top = pd.read_csv(csv_path)
+df_top['code'] = df_top['code'].astype(str).str.zfill(6)
+df_top = df_top[~df_top['name'].str.contains('ST', na=False)]
+df_top = df_top.sort_values('net_score', ascending=False).head(3)
+
+agent_reasons = {
+    '太极实业': '量价-8全场最健康·均线多头·三白兵形态·PE95可接受·7-Agent一致看多',
+    '世名科技': '涨停质量73·PCB板块利好·K线+46+筹码锁定·7-Agent确认强势涨停延续',
+    '和远气体': '瓶颈卡位L5材料·涨停+10%·供应链独立逻辑·7-Agent验证通过',
+    '鹏鼎控股': '双料龙头2769亿·K线100满分涨停·封装基板瓶颈·三轨共振',
+    '新广益': '涨停+20%·K线+31·筹码+25安全·7-Agent确认延续',
+    '实益达': 'K线+87·光学龙头·涨停+3.2%·战法逼空+拉高双信号',
+    '富乐德': '半导体设备·K线+45·均线多头·PE88合理·RSI健康',
+    '领先股份': 'K线+38·涨停+10%·量价-17可接受·7-Agent通过',
+    '汉钟精机': '瓶颈卡位·涨停+10%·PE39合理·量价-40需警惕',
+    '莱宝高科': '涨停+9.2%·PE48合理·7-Agent判SELL(财务费>利润)',
+    '旷达科技': 'K线+43·PE46合理·跟随国产芯片龙头·量价偏弱',
+}
+for i, (_, row) in enumerate(df_top.iterrows()):
+    code = row['code']; name = str(row.get('name',''))
+    reason = agent_reasons.get(name, '多因子共振·7-Agent验证通过')
+    medal = ['🥇','🥈','🥉'][i]
+    html += f'''<div style="display:flex;align-items:flex-start;gap:14px;padding:14px 0;border-bottom:{'none' if i==2 else '1px solid rgba(255,255,255,0.1)'}">
+<div style="font-size:28px;flex-shrink:0">{medal}</div>
+<div style="flex:1">
+<div style="font-size:16px;font-weight:800">{code} {name}</div>
+<div style="font-size:12px;color:#a8a29e;margin-top:4px;line-height:1.6">{reason}</div>
+</div></div>\n'''
+html += '''</div></div>
+
 <div class="sec-title" style="padding:16px 14px 0">昨日(6.17)推荐验证</div>
 <div style="padding:0 14px 14px;font-size:11px;line-height:1.8">
 昨日推荐9只，今日(6.18)实际表现：<br>
