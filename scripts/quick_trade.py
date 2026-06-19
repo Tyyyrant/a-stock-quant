@@ -724,6 +724,59 @@ def run(target_date=None, top_sectors=TOP_SECTORS, per_sector=TOP_PER_SECTOR):
         )
         print(f"  {sec}: {len(picks)}只领头羊 | {leaders_str}")
 
+    # ========== Layer 3.4: 全市场战法扫描 ==========
+    print(f"\n[Layer 3.4] 全市场战法扫描 (4485只)...")
+    warfare_triggered = []
+    try:
+        from warfare_patterns import detect_all_warfare
+        wf_count = 0
+        for code, item in kline_map.items():
+            if code.startswith("688"): continue
+            try:
+                k = item["kline"] if isinstance(item, dict) else item
+                if len(k) < 60: continue
+                k = k[k["date"] <= target_date]
+                w = detect_all_warfare(code, k)
+                # 只取真正触发的四大战法
+                for wf_name in ["逼空星线", "猎取B区", "A区起涨", "拉高抢筹"]:
+                    if w[wf_name]["triggered"]:
+                        c_arr = k["close"].values
+                        price = float(c_arr[-1])
+                        chg = (price / float(c_arr[-2]) - 1) * 100 if len(c_arr) >= 2 else 0
+                        # 区分站MA5还是回调至MA10
+                        pos = "站MA5" if any("逼空站MA5" in c for c in w[wf_name]["conditions_met"]) else "回调MA10"
+                        # 取名称
+                        wf_name_lookup = ""
+                        try:
+                            info = kline_map.get(code, {})
+                            if isinstance(info, dict):
+                                wf_name_lookup = info.get("info", {}).get("name", "") or info.get("name", "")
+                        except: pass
+                        warfare_triggered.append({
+                            "code": code, "name": wf_name_lookup, "price": price, "chg_pct": round(chg, 2),
+                            "warfare": wf_name, "score": w[wf_name]["score"],
+                            "position": pos,
+                            "conditions": w[wf_name]["conditions_met"],
+                            "wait_for": w[wf_name].get("wait_for", ""),
+                        })
+                        wf_count += 1
+            except: pass
+        # 优先站MA5, 其次回调MA10
+        warfare_triggered.sort(key=lambda x: (0 if x["position"]=="站MA5" else 1, -x["score"]))
+        print(f"  全市场触发: {wf_count} 个信号 ({len(set(s['code'] for s in warfare_triggered))} 只股票)")
+        if warfare_triggered:
+            for s in warfare_triggered[:5]:
+                print(f"    {s['code']} {s['warfare']}:{s['score']}分 {s['position']} ¥{s['price']:.2f} {s['chg_pct']:+.1f}%")
+        # 保存供 report 使用
+        wf_path = ROOT / "output" / target_date / "warfare_triggered.json"
+        import json as _json
+        wf_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(wf_path, "w") as f:
+            _json.dump(warfare_triggered, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"  战法扫描跳过: {e}")
+        warfare_triggered = []
+
     # ========== Layer 3.5: 细分概念 + 龙头识别 ==========
     print(f"\n[Layer 3.5] 细分概念归类 + 龙头识别...")
     from data_loader import eastmoney_concept_blocks as _ecb

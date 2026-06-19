@@ -83,30 +83,41 @@ for code in sector_codes:
         'lu_label':lu['quality_label'] if lu['is_limit_up'] else '',
         'leader_tag': leader_tag})
 
-# ==== Track 2: 战法 ====
-all_picks = []
-for _, row in df.iterrows():
-    code = row['code']
-    market = 1 if code.startswith('6') else 0
-    dk = get_stock_kline(code, market, refresh=False)
-    if dk is None or len(dk) < 60: continue
-    dk = dk[dk['date'] <= date]
-    w = detect_all_warfare(code, dk)
-    wf_total = sum(w[n]['score'] for n in w)
-    p = identify_all_patterns(dk, ticker=code); v = analyze_volume_price(dk); c = estimate_chip_distribution(dk)
-    try: fund = fetch_fundamentals(code, date)
-    except: fund = {}
-    name = fund.get('name','') or str(row.get('name',''))
-    price = float(dk['close'].values[-1])
-    chg = (price / float(dk['close'].values[-2]) - 1) if len(dk) >= 2 else 0
-    details = []
-    for n, clr in [('逼空星线','bsx'),('拉高抢筹','lg'),('A区起涨','aq'),('猎取B区','lb')]:
-        s = w[n]['score']
-        if s >= 5: details.append(f'<span class="wf-tag wf-{clr}">{n}:{s}</span>')
-    all_picks.append({'code':code,'name':name,'price':price,'chg_pct':round(chg*100,2),
-        'k_score':round(p.pattern_score,1),'v_score':v.get('volume_score',0),
-        'wf_total':wf_total, 'wf_detail':' '.join(details) if details else '—'})
-warfare_picks = sorted(all_picks, key=lambda x: x['wf_total'], reverse=True)[:5]
+# ==== Track 2: 战法 (从全市场扫描结果读取真正触发的) ====
+wf_path = os.path.join(ROOT, "output", date, "warfare_triggered.json")
+warfare_picks = []
+if os.path.exists(wf_path):
+    try:
+        with open(wf_path) as f: wf_data = json.load(f)
+        # 优先站MA5, 取前5
+        wf_ma5 = [s for s in wf_data if s.get("position") == "站MA5"]
+        wf_rest = [s for s in wf_data if s.get("position") != "站MA5"]
+        wf_selected = (wf_ma5 + wf_rest)[:5]
+        for s in wf_selected:
+            code = s["code"]
+            market = 1 if code.startswith('6') else 0
+            dk = get_stock_kline(code, market, refresh=False)
+            if dk is None: continue
+            dk = dk[dk['date'] <= date]
+            p = identify_all_patterns(dk, ticker=code); v = analyze_volume_price(dk)
+            try: fund = fetch_fundamentals(code, date)
+            except: fund = {}
+            name = fund.get('name','') or s.get('name','')
+            wf_name = s.get("warfare","")
+            wf_score = s.get("score",0)
+            pos = s.get("position","")
+            # 战法标签
+            clr_map = {'逼空星线':'bsx','拉高抢筹':'lg','A区起涨':'aq','猎取B区':'lb'}
+            clr = clr_map.get(wf_name, 'bsx')
+            wf_tag = f'<span class="wf-tag wf-{clr}">{wf_name}:{wf_score} {pos}</span>'
+            warfare_picks.append({
+                'code':code, 'name':name, 'price':s.get('price',0),
+                'chg_pct':s.get('chg_pct',0),
+                'k_score':round(p.pattern_score,1),'v_score':v.get('volume_score',0),
+                'wf_total':wf_score, 'wf_detail':wf_tag,
+            })
+    except Exception:
+        pass
 
 # ==== Track 3: 瓶颈 (优先读bottleneck_full.json，fallback到CSV) ====
 bn_path = os.path.join(ROOT, "output", date, "bottleneck_full.json")
@@ -192,6 +203,14 @@ def stock_row(s, extra_col=None, extra_style=None):
     lu_str = f' <span style="font-size:7px;color:#cc241d">[{lu}]</span>' if lu else ''
     return f'<tr><td>{s["code"]}</td><td><strong>{s["name"]}</strong>{lu_str}</td><td style="text-align:right">{s["price"]:.2f}</td><td class="{chg_cls}" style="text-align:right">{chg:+.1f}%</td><td style="text-align:right;font-weight:700">{s.get("k_score",0):+.0f}</td><td class="{v_cls}" style="text-align:right">{v:+.0f}</td>{extra}</tr>\n'
 
+# 战法列 HTML (必须在 stock_row 定义之后)
+if warfare_picks:
+    track2_html = '<table>\n<tr><th>代码</th><th>名称</th><th style="text-align:right">现价</th><th style="text-align:right">涨跌</th><th style="text-align:right">K线</th><th style="text-align:right">量价</th><th>匹配战法</th></tr>\n'
+    track2_html += ''.join(stock_row(s, s.get('wf_detail','—'), 'font-size:7px') for s in warfare_picks)
+    track2_html += '</table>\n<div class="legend"><span class="wf-tag wf-bsx">逼空星线</span><span class="wf-tag wf-lg">拉高抢筹</span><span class="wf-tag wf-aq">A区起涨</span><span class="wf-tag wf-lb">猎取B区</span> 全市场扫描·只显示真正触发</div>'
+else:
+    track2_html = '<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px">今日无符合战法的股票</div>\n<div class="legend">全市场4485只扫描·四大战法均未触发</div>'
+
 html = f'''<!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8"><style>
 :root{{--bg:#f0f2f5;--card:#fff;--text:#1a1a2e;--muted:#8b8fa3;--border:#e8eaef;--up:#d4343e;--down:#1ca051;--t1:#e87400;--t2:#7c3aed;--t3:#b45309;--t4:#2563eb}}
 *{{margin:0;padding:0;box-sizing:border-box}}
@@ -276,11 +295,7 @@ tr:nth-child(even) td{{background:#fafbfc}}
 <div class="icon" style="background:var(--t2)">战</div>
 <span class="txt">战法信号</span>
 </div>
-<table>
-<tr><th>代码</th><th>名称</th><th style="text-align:right">现价</th><th style="text-align:right">涨跌</th><th style="text-align:right">K线</th><th style="text-align:right">量价</th><th>匹配战法</th></tr>
-{''.join(stock_row(s, s.get('wf_detail','—'), 'font-size:7px') for s in warfare_picks)}
-</table>
-<div class="legend"><span class="wf-tag wf-bsx">逼空星线</span><span class="wf-tag wf-lg">拉高抢筹</span><span class="wf-tag wf-aq">A区起涨</span><span class="wf-tag wf-lb">猎取B区</span> 战法总分</div>
+{track2_html}
 </div>
 
 <!-- Track 3: 供应链瓶颈-->
