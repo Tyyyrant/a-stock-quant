@@ -119,8 +119,9 @@ for code in bn_codes:
         'source':str(row.get('sector','瓶颈'))})
 
 # ==== Track 4: 涟漪 (从CSV中过滤新闻驱动标的) ====
-rip_codes = df[df['sector'].str.contains('新闻', na=False)]['code'].head(8).tolist()
+rip_codes = df[df['sector'].str.contains('新闻', na=False)]['code'].tolist()
 rip_picks = []
+scored = []
 for code in rip_codes:
     market = 1 if code.startswith('6') else 0
     dk = get_stock_kline(code, market, refresh=False)
@@ -132,9 +133,13 @@ for code in rip_codes:
     name = fund.get('name','') or code
     price = float(dk['close'].values[-1])
     chg = (price / float(dk['close'].values[-2]) - 1) if len(dk) >= 2 else 0
-    rip_picks.append({'code':code,'name':name,'price':price,'chg_pct':round(chg*100,2),
+    score = p.pattern_score*0.35 + v.get('volume_score',0)*0.3 + c.get('chip_score',0)*0.2
+    scored.append({'code':code,'name':name,'price':price,'chg_pct':round(chg*100,2),
         'k_score':round(p.pattern_score,1),'v_score':v.get('volume_score',0),
-        'material':str(row.get('sector','涟漪')).replace('新闻:','')})
+        'material':str(row.get('sector','涟漪')).replace('新闻:','').replace('新闻AI:',''),
+        'score':round(score,1)})
+scored.sort(key=lambda x: x['score'], reverse=True)
+rip_picks = scored[:5]  # 只取Top5
 
 # ==== Render ====
 def stock_row(s, extra_col=None, extra_style=None):
