@@ -721,9 +721,10 @@ def run(target_date=None, top_sectors=TOP_SECTORS, per_sector=TOP_PER_SECTOR):
                 "resonance": 0,
             })
 
-    # ========== Layer 3.7: 新闻驱动涟漪 ==========
+    # ========== Layer 3.7: 新闻驱动涟漪 (关键词+AI推理双源) ==========
     print(f"\n[Layer 3.7] 新闻驱动涟漪...")
     ripple_stocks = []
+    # 源1: 关键词涟漪
     try:
         from news_ripple import analyze_news_ripple
         ripple_result = analyze_news_ripple(days=7, target_date=target_date)
@@ -736,15 +737,33 @@ def run(target_date=None, top_sectors=TOP_SECTORS, per_sector=TOP_PER_SECTOR):
                     "sector": f"新闻:{s.get('material','')}",
                     "close": s.get("price", 0), "change_pct": s.get("chg_pct", 0),
                     "vol_ratio": 1.0, "pe": 0, "bull_align": True,
-                    "score": s.get("score", 0),
-                    "resonance": 0,
-                    "ripple_layer": s.get("layer", 0),
-                    "ripple_logic": s.get("logic", ""),
+                    "score": s.get("score", 0), "resonance": 0,
                 })
-        if ripple_stocks:
-            print(f"  新闻涟漪驱动: {len(ripple_stocks)} 只 (L1直接+L2涟漪)")
     except Exception as e:
-        print(f"  新闻涟漪跳过: {e}")
+        print(f"  关键词涟漪跳过: {e}")
+
+    # 源2: AI推理新闻→标的（从 news_ai_stocks.json 读取）
+    ai_path = ROOT / "output" / target_date / "news_ai_stocks.json"
+    if ai_path.exists():
+        try:
+            with open(ai_path) as f: ai_stocks = json.load(f)
+            for s in ai_stocks:
+                code = s["code"]
+                if code in kline_map and not code.startswith("688") and code not in [p["code"] for p in all_picks]:
+                    ripple_stocks.append(code)
+                    all_picks.append({
+                        "code": code, "name": s.get("name", ""),
+                        "sector": f"新闻AI:{s.get('topic','')[:15]}",
+                        "close": s.get("price", 0), "change_pct": s.get("chg_pct", 0),
+                        "vol_ratio": 1.0, "pe": s.get("pe", 0), "bull_align": True,
+                        "score": s.get("score", 0), "resonance": 0,
+                    })
+            if ai_stocks: print(f"  AI推理驱动: {len(ai_stocks)} 只")
+        except Exception as e:
+            print(f"  AI推理跳过: {e}")
+
+    if ripple_stocks:
+        print(f"  新闻驱动合计: {len(ripple_stocks)} 只")
 
     print(f"\n  共 {len(all_picks)} 只代表股待分析 (含{len(bottleneck_stocks)}只瓶颈 + {len(ripple_stocks)}只新闻驱动)")
 
