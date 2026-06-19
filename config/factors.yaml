@@ -1,0 +1,269 @@
+# 因子定义文件
+# 每个因子定义公式、方向、中性化方法
+
+factors:
+  # ==================== Barra 风格因子（风险端）====================
+  size:
+    name: "规模因子"
+    category: barra
+    formula: "ln(market_cap)"
+    direction: -1               # A股小盘溢价，越小越好
+    neutralization: [industry]
+    description: "对数市值，小盘股长期有溢价"
+
+  volatility:
+    name: "低波因子"
+    category: barra
+    formula: "std(daily_return, 60)"
+    direction: -1               # 低波异象
+    neutralization: [industry, size]
+    description: "60日收益率标准差，越低越稳"
+
+  momentum_1m:
+    name: "1月动量"
+    category: barra
+    formula: "cum_return(-21, -5)"
+    direction: 1
+    neutralization: [industry]
+    description: "过去1个月收益（跳过最近5天）"
+
+  momentum_6m:
+    name: "6月动量"
+    category: barra
+    formula: "cum_return(-126, -21)"
+    direction: 1
+    neutralization: [industry]
+    description: "过去6个月收益（跳过最近1月）"
+
+  value_ep:
+    name: "价值-EP"
+    category: barra
+    formula: "1 / pe_ttm"
+    direction: 1
+    neutralization: [industry]
+    filter: "pe_ttm > 0"
+    description: "市盈率倒数，越高越便宜"
+
+  value_bp:
+    name: "价值-BP"
+    category: barra
+    formula: "1 / pb"
+    direction: 1
+    neutralization: [industry]
+    filter: "pb > 0"
+    description: "市净率倒数"
+
+  quality_roe:
+    name: "质量-ROE"
+    category: barra
+    formula: "roe_ttm"
+    direction: 1
+    filter: "roe_ttm between 5 and 40"
+    neutralization: [industry]
+    description: "TTM净资产收益率"
+
+  quality_lev:
+    name: "质量-杠杆"
+    category: barra
+    formula: "debt_to_equity"
+    direction: -1               # 杠杆越低越好
+    neutralization: [industry]
+    description: "资产负债率"
+
+  growth_revenue:
+    name: "成长-营收"
+    category: barra
+    formula: "revenue_yoy"
+    direction: 1
+    neutralization: [industry]
+    description: "营收同比增长率"
+
+  liquidity:
+    name: "流动性因子"
+    category: barra
+    formula: "ln(avg_amount_20d)"
+    direction: 1
+    neutralization: [size]
+    description: "日均成交额对数，流动性越好越容易进出"
+
+  # ==================== A股 Alpha 因子 ====================
+  reversal_5d:
+    name: "5日反转"
+    category: alpha
+    formula: "-cum_return(-5, 0)"
+    direction: 1
+    condition: "close > ma20"
+    neutralization: [industry, size]
+    description: "短期超跌反弹，仅在均线上方使用"
+
+  reversal_1d:
+    name: "1日反转"
+    category: alpha
+    formula: "-daily_return"
+    direction: 1
+    neutralization: [industry, size]
+    description: "昨日跌今日有望反弹"
+
+  north_flow:
+    name: "北向资金"
+    category: alpha
+    formula: "north_holding_change_20d"
+    direction: 1
+    neutralization: [industry]
+    description: "近20日北向持仓变化比例"
+
+  money_flow:
+    name: "主力资金流"
+    category: alpha
+    formula: "main_net_inflow_5d / avg_amount_20d"
+    direction: 1
+    neutralization: [industry, size]
+    description: "5日主力净流入占日均成交比"
+
+  analyst_coverage:
+    name: "分析师覆盖"
+    category: alpha
+    formula: "analyst_count"
+    direction: 1
+    neutralization: [industry, size]
+    description: "覆盖分析师数量，越多越受关注"
+
+  sector_momentum:
+    name: "行业动量"
+    category: alpha
+    formula: "sector_pct_20d_rank"
+    direction: 1
+    neutralization: []
+    description: "所属行业近20日涨幅排名百分位"
+
+  sentiment:
+    name: "板块情绪"
+    category: alpha
+    formula: "sentiment_score"
+    direction: 1
+    neutralization: []
+    description: "来自 news 项目的板块新闻情绪评分"
+
+  # ==================== 技术形态因子 ====================
+  bottom_breakout:
+    name: "底部倍量突破"
+    category: technical
+    formula: "composite_bottom_breakout"
+    direction: 1
+    neutralization: []
+    description: "超跌+底部横盘+倍量大阳突破"
+
+  key_breakout:
+    name: "关键位突破"
+    category: technical
+    formula: "composite_key_breakout"
+    direction: 1
+    neutralization: []
+    description: "放量突破MA60/120/250或前期高点"
+
+  ma_squeeze:
+    name: "均线粘合发散"
+    category: technical
+    formula: "composite_ma_squeeze"
+    direction: 1
+    neutralization: []
+    description: "MA5/10/20极度收敛后向上发散"
+
+  macd_golden:
+    name: "MACD零轴金叉"
+    category: technical
+    formula: "composite_macd_golden"
+    direction: 1
+    neutralization: []
+    description: "MACD在零轴附近金叉"
+
+  pullback:
+    name: "缩量回踩企稳"
+    category: technical
+    formula: "composite_pullback"
+    direction: 1
+    neutralization: []
+    description: "突破后缩量回踩关键位企稳"
+
+  # ==================== 融资融券 & 龙虎榜因子 ====================
+  margin_trend:
+    name: "融资趋势"
+    category: alpha
+    formula: "margin_change_5d_pct"
+    direction: 1
+    neutralization: [industry, size]
+    description: "近5日融资余额变化率，温和上升看多"
+
+  margin_ratio:
+    name: "融资市值比"
+    category: alpha
+    formula: "rzye / market_cap"
+    direction: -1               # 融资比例过高是风险
+    neutralization: [industry]
+    description: "融资余额占总市值比，过高警惕"
+
+  dragon_tiger_inst:
+    name: "龙虎榜机构"
+    category: alpha
+    formula: "institution_net_buy_wan"
+    direction: 1
+    neutralization: [industry]
+    description: "龙虎榜机构席位净买入额(万元)"
+
+  # ==================== 量价因子 ====================
+  volume_ratio:
+    name: "量比"
+    category: volume
+    formula: "volume / ma_volume_5"
+    direction: 1
+    neutralization: []
+    description: "当日成交量 / 5日均量"
+
+  abnormal_volume:
+    name: "异常放量"
+    category: volume
+    formula: "volume / ma_volume_20"
+    direction: 1
+    neutralization: [size]
+    description: "20日相对成交量"
+
+  turnover:
+    name: "换手率"
+    category: volume
+    formula: "turnover_rate"
+    direction: -1               # 低换手长期更好
+    neutralization: [size]
+    description: "换手率，过高可能出货"
+
+  # ==================== 新增: 深度分析因子 (v2) ====================
+  overheat_penalty:
+    name: "过热惩罚"
+    category: risk
+    formula: "composite_overheat"
+    direction: -1
+    neutralization: []
+    description: "多维度判断短期过热，越高越危险"
+
+  candlestick_pattern:
+    name: "K线形态"
+    category: technical
+    formula: "candlestick_pattern_score"
+    direction: 1
+    neutralization: []
+    description: "经典K线组合形态识别评分"
+
+  volume_price_quality:
+    name: "量价质量"
+    category: technical
+    formula: "volume_price_score"
+    direction: 1
+    neutralization: []
+    description: "量价配合+量堆位置+主力意图综合评分"
+
+  chip_safety:
+    name: "筹码安全"
+    category: technical
+    formula: "chip_distribution_score"
+    direction: 1
+    neutralization: []
+    description: "筹码分布估算: 获利盘+支撑压力+集中度"

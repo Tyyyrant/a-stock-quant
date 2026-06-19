@@ -1,0 +1,428 @@
+# A股产业链映射配置
+# 每个主题定义5层供应链拆解 + 瓶颈原型标注
+#
+# 五层模型:
+#   L1: 下游对照 (终端品牌/应用运营商)
+#   L2: 中游系统 (整机/系统集成商)
+#   L3: 中游器件 (核心零部件/子系统)
+#   L4: 上游设备 (制造装备/测试设备)
+#   L5: 上游材料/代工 (原材料/代工服务)
+#
+# 瓶颈原型 (9+3):
+#   1. 单源供应商    — 全球只有1-2家能做的
+#   2. 产能瓶颈      — 扩产需要2年+的
+#   3. 认证壁垒      — 客户认证周期>1年的
+#   4. 耗材绑定      — 设备卖了后面持续耗材收入的
+#   5. 设计锁定      — 产品设计一旦选定换不掉的
+#   6. 高转换成本    — 客户切换成本极高的
+#   7. 稀缺牌照      — 政府特许经营/牌照限制
+#   8. 工艺壁垒      — 良率/工艺know-how极难复制的
+#   9. 规模效应      — 规模越大成本越低的正循环
+#   A1. 国产替代锁定  — 卡脖子环节的国内唯一/领先供应商 (A股特有)
+#   A2. 政策壁垒      — 核电/军工/烟草等准入壁垒 (A股特有)
+#   A3. 国企改革套利  — 央企整合/资产注入预期 (A股特有)
+
+themes:
+  # ============================================================
+  # AI & 算力
+  # ============================================================
+  算力:
+    description: "AI算力基础设施，包括算力租赁/智算中心/GPU服务器/液冷/HVDC供电"
+    chain:
+      L1_下游终端:
+        name: "AI应用/大模型厂商"
+        description: "AI大模型公司和云服务商"
+        is_bottleneck: false
+        archetypes: []
+        a_stock_sectors: ["云计算", "AI应用", "大模型"]
+        sample_stocks: ["300738", "301236"]
+      L2_中游系统:
+        name: "智算中心/算力租赁"
+        description: "GPU算力租赁/智算中心运营"
+        is_bottleneck: false
+        archetypes: []
+        a_stock_sectors: ["算力租赁", "智算中心", "AI算力"]
+        sample_stocks: ["300738", "301236"]
+      L3_中游器件:
+        name: "GPU服务器/液冷/HVDC"
+        description: "AI服务器、液冷方案、高压直流电源"
+        is_bottleneck: true
+        archetypes: ["认证壁垒", "设计锁定", "国产替代锁定"]
+        a_stock_sectors: ["液冷", "HVDC", "AI服务器", "算力电力"]
+        sample_stocks: ["300738", "603881"]
+      L4_上游设备:
+        name: "光模块/高速PCB/铜连接"
+        description: "800G/1.6T光模块、高频高速PCB、铜背板"
+        is_bottleneck: true
+        archetypes: ["单源供应商", "产能瓶颈", "国产替代锁定"]
+        a_stock_sectors: ["光模块", "CPO", "PCB", "铜连接"]
+        sample_stocks: ["300308", "002916"]
+      L5_上游材料:
+        name: "散热材料/磁性材料"
+        description: "TIM导热界面材料、高频磁性材料"
+        is_bottleneck: true
+        archetypes: ["工艺壁垒", "国产替代锁定"]
+        a_stock_sectors: ["散热材料", "电子化学品", "磁性材料"]
+        sample_stocks: ["300684", "300602", "002402", "603008"]
+
+  AI数据中心电源:
+    description: "AI数据中心电力基础设施，包括HVDC/液冷/UPS/配电"
+    chain:
+      L1_下游终端:
+        name: "AI数据中心运营商"
+        description: "超大规模云厂商自建数据中心"
+        is_bottleneck: false
+        archetypes: []
+        a_stock_sectors: ["云计算", "数据中心"]
+        sample_stocks: ["300738", "603881"]
+      L2_中游系统:
+        name: "电力总包/集成商"
+        description: "数据中心电力系统总包、电气集成"
+        is_bottleneck: false
+        archetypes: []
+        a_stock_sectors: ["电力设备", "配电设备"]
+      L3_中游器件:
+        name: "HVDC/液冷/配电设备"
+        description: "高压直流电源、液冷系统、UPS、变压器"
+        is_bottleneck: true
+        archetypes: ["认证壁垒", "设计锁定"]
+        a_stock_sectors: ["液冷", "HVDC", "UPS", "算力电力"]
+      L4_上游设备:
+        name: "功率半导体/SiC模块"
+        description: "IGBT/SiC功率器件、电源管理IC"
+        is_bottleneck: true
+        archetypes: ["单源供应商", "产能瓶颈", "国产替代锁定"]
+        a_stock_sectors: ["IGBT", "SiC", "功率半导体", "半导体"]
+      L5_上游材料:
+        name: "磁性材料/散热材料"
+        description: "高频磁性材料、导热界面材料"
+        is_bottleneck: true
+        archetypes: ["工艺壁垒", "国产替代锁定"]
+        a_stock_sectors: ["磁性材料", "散热材料", "电子化学品"]
+
+  HBM先进封装:
+    description: "高带宽内存(HBM)与先进封装产业链"
+    chain:
+      L1_下游终端:
+        name: "AI芯片/GPU厂商"
+        description: "NVIDIA/AMD/华为昇腾等"
+        is_bottleneck: false
+        archetypes: []
+        a_stock_sectors: ["AI芯片", "GPU"]
+      L2_中游系统:
+        name: "先进封装厂"
+        description: "CoWoS/EMIB/FOEB 封装"
+        is_bottleneck: true
+        archetypes: ["产能瓶颈", "工艺壁垒"]
+        a_stock_sectors: ["先进封装", "CoWoS", "晶圆级封装"]
+      L3_中游器件:
+        name: "HBM堆叠/中介层"
+        description: "TSV硅通孔、硅中介层、micro-bump"
+        is_bottleneck: true
+        archetypes: ["工艺壁垒", "国产替代锁定"]
+        a_stock_sectors: ["HBM", "TSV", "先进封装材料"]
+      L4_上游设备:
+        name: "封装设备"
+        description: "键合机/贴片机/划片机/测试机"
+        is_bottleneck: true
+        archetypes: ["单源供应商", "国产替代锁定"]
+        a_stock_sectors: ["半导体设备", "封装设备", "划片机"]
+      L5_上游材料:
+        name: "封装基板/EMC/Underfill"
+        description: "ABF载板、环氧塑封料、底部填充胶"
+        is_bottleneck: true
+        archetypes: ["耗材绑定", "认证壁垒"]
+        a_stock_sectors: ["封装基板", "电子化学品", "ABF"]
+
+  # ============================================================
+  # 机器人 & 自动化
+  # ============================================================
+  人形机器人:
+    description: "人形机器人产业链——从减速器到灵巧手"
+    chain:
+      L1_下游终端:
+        name: "人形机器人整机"
+        description: "Tesla Optimus/优必选/Figure等终端品牌"
+        is_bottleneck: false
+        archetypes: []
+        a_stock_sectors: ["机器人", "人形机器人"]
+      L2_中游系统:
+        name: "关节模组/执行器"
+        description: "旋转执行器、线性执行器、关节总成"
+        is_bottleneck: false
+        archetypes: []
+        a_stock_sectors: ["执行器", "关节模组"]
+      L3_中游器件:
+        name: "减速器/丝杠/传感器"
+        description: "谐波减速器/RV减速器/行星滚柱丝杠/六维力/IMU"
+        is_bottleneck: true
+        archetypes: ["工艺壁垒", "产能瓶颈", "国产替代锁定"]
+        a_stock_sectors: ["减速器", "丝杠", "传感器", "机器人零部件"]
+      L4_上游设备:
+        name: "精密磨床/齿轮加工机床"
+        description: "高精度磨齿机、滚齿机、丝杠磨床"
+        is_bottleneck: true
+        archetypes: ["单源供应商", "国产替代锁定"]
+        a_stock_sectors: ["机床", "磨床", "工业母机"]
+      L5_上游材料:
+        name: "特种钢/稀土永磁"
+        description: "轴承钢、稀土永磁材料"
+        is_bottleneck: false
+        archetypes: []
+        a_stock_sectors: ["特钢", "稀土永磁", "磁性材料"]
+
+  # ============================================================
+  # 半导体
+  # ============================================================
+  半导体设备:
+    description: "半导体制造设备——光刻/刻蚀/薄膜/检测"
+    chain:
+      L1_下游终端:
+        name: "芯片设计/Fab"
+        description: "中芯国际/华虹/长存等晶圆厂"
+        is_bottleneck: false
+        archetypes: []
+        a_stock_sectors: ["半导体", "芯片"]
+      L2_中游系统:
+        name: "设备整机"
+        description: "光刻机/刻蚀机/薄膜沉积/清洗/检测"
+        is_bottleneck: true
+        archetypes: ["单源供应商", "认证壁垒", "国产替代锁定"]
+        a_stock_sectors: ["半导体设备", "光刻机", "刻蚀", "薄膜沉积"]
+      L3_中游器件:
+        name: "核心零部件"
+        description: "射频电源/真空泵/阀门/运动台/光学镜头"
+        is_bottleneck: true
+        archetypes: ["单源供应商", "国产替代锁定", "认证壁垒"]
+        a_stock_sectors: ["半导体零部件", "真空泵", "射频电源"]
+      L4_上游设备:
+        name: "零部件加工设备"
+        description: "精密加工中心/表面处理"
+        is_bottleneck: false
+        archetypes: []
+        a_stock_sectors: ["精密加工", "表面处理"]
+      L5_上游材料:
+        name: "半导体材料"
+        description: "硅片/光刻胶/电子特气/靶材/CMP抛光液"
+        is_bottleneck: true
+        archetypes: ["耗材绑定", "认证壁垒", "国产替代锁定"]
+        a_stock_sectors: ["光刻胶", "电子特气", "靶材", "硅片"]
+
+  # ============================================================
+  # 新能源 & 汽车
+  # ============================================================
+  固态电池:
+    description: "固态/半固态电池产业链"
+    chain:
+      L1_下游终端:
+        name: "新能源车企/电池Pack"
+        description: "整车厂、电池包集成"
+        is_bottleneck: false
+        archetypes: []
+        a_stock_sectors: ["新能源汽车", "动力电池"]
+      L2_中游系统:
+        name: "固态电芯制造"
+        description: "固态/半固态电芯"
+        is_bottleneck: true
+        archetypes: ["工艺壁垒", "产能瓶颈"]
+        a_stock_sectors: ["固态电池", "半固态电池"]
+      L3_中游器件:
+        name: "固态电解质膜"
+        description: "氧化物/硫化物/聚合物电解质膜"
+        is_bottleneck: true
+        archetypes: ["工艺壁垒", "单源供应商", "国产替代锁定"]
+        a_stock_sectors: ["固态电解质", "硫化物"]
+        sample_stocks: ["002805", "300769", "002407"]
+      L4_上游设备:
+        name: "干法电极/叠片设备"
+        description: "干法电极设备、高精度叠片机"
+        is_bottleneck: true
+        archetypes: ["设计锁定", "认证壁垒"]
+        a_stock_sectors: ["锂电设备", "叠片机"]
+        sample_stocks: ["300450", "300457", "688559"]
+      L5_上游材料:
+        name: "锂镧锆氧/硫化锂前驱体"
+        description: "LLZO、LGPS前驱体材料"
+        is_bottleneck: true
+        archetypes: ["工艺壁垒", "国产替代锁定"]
+        a_stock_sectors: ["锂电材料", "锆材料", "硫化锂"]
+        sample_stocks: ["002167", "600549", "300618"]
+
+  自动驾驶:
+    description: "L4自动驾驶产业链"
+    chain:
+      L1_下游终端:
+        name: "整车厂/出行平台"
+        description: "Robotaxi运营商/乘用车企"
+        is_bottleneck: false
+        archetypes: []
+        a_stock_sectors: ["自动驾驶", "智能汽车"]
+      L2_中游系统:
+        name: "自动驾驶域控/计算平台"
+        description: "域控制器/计算平台(Orin/Thor)"
+        is_bottleneck: true
+        archetypes: ["单源供应商", "设计锁定"]
+        a_stock_sectors: ["域控制器", "自动驾驶芯片"]
+      L3_中游器件:
+        name: "激光雷达/毫米波/摄像头"
+        description: "LiDAR/4D毫米波/8M摄像头/超声波"
+        is_bottleneck: true
+        archetypes: ["产能瓶颈", "认证壁垒"]
+        a_stock_sectors: ["激光雷达", "毫米波雷达", "车载摄像头"]
+      L4_上游设备:
+        name: "激光雷达发射/接收模组"
+        description: "VCSEL/EEL/SPAD/APD/MEMS振镜"
+        is_bottleneck: true
+        archetypes: ["单源供应商", "国产替代锁定"]
+        a_stock_sectors: ["VCSEL", "SPAD", "光学器件"]
+      L5_上游材料:
+        name: "光学材料/特种玻璃"
+        description: "窄带滤光片/光学玻璃/窗口材料"
+        is_bottleneck: false
+        archetypes: []
+        a_stock_sectors: ["光学材料", "滤光片"]
+
+  # ============================================================
+  # 航天 & 军工
+  # ============================================================
+  商业航天:
+    description: "商业航天/卫星互联网产业链"
+    chain:
+      L1_下游终端:
+        name: "卫星运营商/火箭发射"
+        description: "星网/G60/长光卫星/SpaceX-like"
+        is_bottleneck: false
+        archetypes: []
+        a_stock_sectors: ["商业航天", "卫星互联网"]
+      L2_中游系统:
+        name: "卫星整星/火箭总装"
+        description: "卫星平台/火箭箭体"
+        is_bottleneck: true
+        archetypes: ["稀缺牌照", "政策壁垒"]
+        a_stock_sectors: ["卫星制造", "火箭制造"]
+      L3_中游器件:
+        name: "星载载荷/推进系统"
+        description: "通信载荷/电推/霍尔推进/星敏感器"
+        is_bottleneck: true
+        archetypes: ["单源供应商", "国产替代锁定"]
+        a_stock_sectors: ["卫星载荷", "电推进", "航天电子"]
+      L4_上游设备:
+        name: "真空测试/热真空设备"
+        description: "空间环境模拟测试设备"
+        is_bottleneck: true
+        archetypes: ["单源供应商", "政策壁垒"]
+        a_stock_sectors: ["航天测试", "真空设备"]
+      L5_上游材料:
+        name: "宇航级芯片/复材"
+        description: "抗辐射芯片/碳纤维复材/热控涂层"
+        is_bottleneck: true
+        archetypes: ["单源供应商", "政策壁垒", "国产替代锁定"]
+        a_stock_sectors: ["宇航芯片", "碳纤维", "热控材料"]
+
+  # ============================================================
+  # 低空经济
+  # ============================================================
+  低空经济:
+    description: "低空经济/eVTOL产业链"
+    chain:
+      L1_下游终端:
+        name: "eVTOL整机/无人机"
+        description: "亿航/峰飞/小鹏汇天等"
+        is_bottleneck: false
+        archetypes: []
+        a_stock_sectors: ["低空经济", "eVTOL", "无人机"]
+      L2_中游系统:
+        name: "飞控/航电系统"
+        description: "飞行控制/导航/通信系统"
+        is_bottleneck: true
+        archetypes: ["认证壁垒", "设计锁定"]
+        a_stock_sectors: ["飞控系统", "航电", "低空通信"]
+      L3_中游器件:
+        name: "电驱/旋翼/能源系统"
+        description: "高功率密度电机/倾转旋翼/高能量密度电池"
+        is_bottleneck: true
+        archetypes: ["单源供应商", "产能瓶颈", "国产替代锁定"]
+        a_stock_sectors: ["电机", "旋翼", "航空电池"]
+      L4_上游设备:
+        name: "适航认证测试设备"
+        description: "飞行测试/疲劳测试/环境试验"
+        is_bottleneck: false
+        archetypes: []
+        a_stock_sectors: ["测试设备", "适航试验"]
+      L5_上游材料:
+        name: "航空复材/轻量化材料"
+        description: "碳纤维复材/钛合金/铝合金"
+        is_bottleneck: true
+        archetypes: ["工艺壁垒"]
+        a_stock_sectors: ["碳纤维", "钛合金", "航空材料"]
+
+  # ============================================================
+  # 更多主题（按需扩展）
+  # ============================================================
+  核聚变:
+    description: "可控核聚变产业链"
+    chain:
+      L1_下游终端:
+        name: "聚变电站运营"
+        description: "未来商用聚变电站"
+        is_bottleneck: false
+        archetypes: []
+        a_stock_sectors: ["核聚变"]
+      L2_中游系统:
+        name: "托卡马克装置"
+        description: "全超导托卡马克/仿星器"
+        is_bottleneck: true
+        archetypes: ["单源供应商", "政策壁垒"]
+        a_stock_sectors: ["核聚变", "托卡马克"]
+      L3_中游器件:
+        name: "高温超导带材/偏滤器"
+        description: "REBCO高温超导带材/第一壁材料/偏滤器"
+        is_bottleneck: true
+        archetypes: ["单源供应商", "工艺壁垒", "国产替代锁定"]
+        a_stock_sectors: ["高温超导", "偏滤器"]
+      L4_上游设备:
+        name: "低温/真空/电源系统"
+        description: "液氦低温系统/超高真空/大功率电源"
+        is_bottleneck: true
+        archetypes: ["单源供应商", "国产替代锁定"]
+        a_stock_sectors: ["低温设备", "真空设备", "大功率电源"]
+      L5_上游材料:
+        name: "REBCO前驱体/中子屏蔽材料"
+        description: "钇钡铜氧前驱体/碳化硼/钨"
+        is_bottleneck: true
+        archetypes: ["工艺壁垒"]
+        a_stock_sectors: ["稀土材料", "钨材料"]
+
+  量子计算:
+    description: "量子计算产业链"
+    chain:
+      L1_下游终端:
+        name: "量子计算云平台"
+        description: "量子云计算服务"
+        is_bottleneck: false
+        archetypes: []
+        a_stock_sectors: ["量子计算", "量子信息"]
+      L2_中游系统:
+        name: "量子计算机整机"
+        description: "超导量子计算机/光量子/离子阱"
+        is_bottleneck: true
+        archetypes: ["单源供应商", "工艺壁垒", "政策壁垒"]
+        a_stock_sectors: ["量子计算机", "超导量子"]
+      L3_中游器件:
+        name: "量子芯片/量子比特"
+        description: "超导量子芯片/量子比特"
+        is_bottleneck: true
+        archetypes: ["单源供应商", "工艺壁垒"]
+        a_stock_sectors: ["量子芯片"]
+      L4_上游设备:
+        name: "稀释制冷机/微波测控"
+        description: "10mK稀释制冷机/微波测控系统"
+        is_bottleneck: true
+        archetypes: ["单源供应商", "国产替代锁定"]
+        a_stock_sectors: ["制冷机", "微波测控"]
+      L5_上游材料:
+        name: "高纯铝/铌/约瑟夫森结材料"
+        description: "超导薄膜/高纯金属"
+        is_bottleneck: true
+        archetypes: ["工艺壁垒"]
+        a_stock_sectors: ["高纯金属", "超导薄膜"]

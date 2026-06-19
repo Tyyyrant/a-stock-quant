@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Data (large files)
+data/stocks/*.parquet
+data/signals/*.csv
+data/chip_cache/
+*.parquet
+
+# Output reports
+output/
+
+# IDE
+.vscode/
+.idea/
+*.DS_Store
+
+# Secrets / local config
+.env
+*.local.yaml
+
+# Jupyter
+.ipynb_checkpoints/

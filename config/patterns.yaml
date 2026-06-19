@@ -1,0 +1,160 @@
+# 技术形态量化规则
+
+patterns:
+  bottom_breakout:
+    name: "底部倍量突破"
+    dimensions:
+      oversold:
+        weight: 0.25
+        rules:
+          prior_decline_min: -20       # 近20日最低跌幅
+          prior_decline_lookup: 20     # 回看天数
+        scoring: |
+          decline <= -30 → 100分
+          decline <= -20 → 80分
+          decline <= -10 → 50分
+          decline > 0   → 0分
+
+      base_quality:
+        weight: 0.25
+        rules:
+          consolidation_days_min: 10
+          consolidation_amplitude_max: 15  # 横盘振幅%
+        scoring: |
+          days>15 & amp<10 → 100分
+          days>10 & amp<15 → 70分
+          days>5  & amp<15 → 50分
+          else → 20分
+
+      breakout_power:
+        weight: 0.30
+        rules:
+          volume_ratio_min: 2.0
+          daily_change_min: 5.0
+        scoring: |
+          vol_ratio>3 & change>7 & yang_full_body → 100分
+          vol_ratio>2 & change>5 & yang_short_upper → 80分
+          vol_ratio>1.5 & change>3 → 50分
+          else → 0分
+
+      position:
+        weight: 0.20
+        rules:
+          must_above_ma20: true
+        scoring: |
+          above_ma20 & above_ma60 → 100分
+          above_ma20 → 70分
+          below_ma20 → 0分
+
+  key_breakout:
+    name: "关键位放量突破"
+    dimensions:
+      volume:
+        weight: 0.30
+        rules:
+          volume_ratio_min: 2.0
+        scoring: "vol_ratio >= 2 → 100, >= 1.5 → 70, else → 30"
+
+      confirmation:
+        weight: 0.30
+        rules:
+          must_close_above_break_level: true
+        scoring: "close_stand + day2_hold → 100, close_stand → 70"
+
+      level_quality:
+        weight: 0.25
+        rules:
+          break_targets: [ma60, ma120, ma250, high_60d]
+        scoring: "break_ma250 → 100, break_ma120 → 85, break_high60d → 80, break_ma60 → 70"
+
+      candle:
+        weight: 0.15
+        scoring: "full_body_yang → 100, short_upper → 80, long_upper → 40"
+
+  ma_squeeze:
+    name: "均线粘合发散"
+    dimensions:
+      squeeze_level:
+        weight: 0.35
+        rules:
+          ma_lookback: [5, 10, 20]
+        scoring: |
+          spread < 1% → 100 (极度收敛)
+          spread 1-2% → 80
+          spread 2-3% → 50
+          else → 0
+
+      duration:
+        weight: 0.25
+        scoring: |
+          days > 15 → ×1.3
+          days 5-15 → ×1.0
+          days < 5 → ×0.7
+
+      direction:
+        weight: 0.25
+        scoring: |
+          ma5>ma10>ma20 & volume_ratio>1.5 → 100
+          ma5>ma10>ma20 → 70
+          else → 0
+
+      breakout_confirm:
+        weight: 0.15
+        scoring: "change>3 & volume_ratio>1.5 → 100, change>2 → 60"
+
+  macd_golden:
+    name: "MACD零轴金叉"
+    dimensions:
+      position:
+        weight: 0.40
+        scoring: |
+          |dif_dea| / price < 1% → 100 (零轴附近)
+          |dif_dea| / price < 3% & dif < 0 → 80 (零轴下方近)
+          dif > 0 → 60 (零轴上方)
+          dif < 0 & |dif|/price > 5% → 30 (深度水下)
+
+      cross_strength:
+        weight: 0.30
+        scoring: |
+          golden_cross & red_bar_expanding & dif_accelerating → 100
+          golden_cross & red_bar_expanding → 80
+          golden_cross → 60
+
+      divergence:
+        weight: 0.20
+        scoring: |
+          price_new_low & macd_not_new_low → 100 (底背离)
+          no_divergence → 50
+
+      volume:
+        weight: 0.10
+        scoring: "volume_ratio >= 1.2 → 100, else → 50"
+
+  pullback:
+    name: "缩量回踩企稳"
+    dimensions:
+      prerequisite:
+        weight: 0.0          # 前提条件，不满足整体废弃
+        rules:
+          prior_breakout_required: true
+
+      shrink:
+        weight: 0.35
+        scoring: |
+          vol < breakout_vol * 0.5 → 100 (极度缩量)
+          vol < breakout_vol * 0.7 → 70
+          vol > breakout_vol → 20 (放量下跌不是回踩)
+
+      support:
+        weight: 0.35
+        scoring: |
+          hold_key_level & yang_candle → 100
+          hold_key_level → 70
+          break_level → 0 (形态失效)
+
+      stabilize:
+        weight: 0.30
+        scoring: |
+          yang_candle & vol_ratio<0.6 → 100
+          yang_candle → 60
+          else → 0

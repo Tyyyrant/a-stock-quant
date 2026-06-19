@@ -1,0 +1,68 @@
+# 因子权重配置 — 按市场状态动态调整
+
+regimes:
+  # 正常市场（温度40-80，波动率15-25%）
+  normal:
+    technical: 0.20     # 技术形态类（含K线形态、量价、筹码）
+    reversal: 0.13      # 反转类
+    lowvol: 0.10        # 低波异象
+    north: 0.09         # 北向资金
+    quality: 0.08       # 质量类
+    money_flow: 0.07    # 资金流
+    momentum: 0.06      # 动量类
+    sentiment: 0.06     # 板块情绪
+    value: 0.05         # 价值类
+    analyst: 0.04       # 分析师
+    sector_mom: 0.03    # 行业动量
+    # 深度分析因子 (v2 new)
+    candlestick: 0.04
+    volume_quality: 0.03
+    chip_safety: 0.03
+
+  # 防御模式（温度<40 或 波动率>25%）
+  defensive:
+    lowvol: 0.20
+    quality: 0.18
+    sentiment: 0.12
+    north: 0.12
+    reversal: 0.10
+    technical: 0.08
+    value: 0.07
+    money_flow: 0.05
+    momentum: 0.03
+    analyst: 0.02
+    candlestick: 0.01
+    volume_quality: 0.01
+    chip_safety: 0.04    # 弱势下筹码安全最重要
+
+  # 进攻模式（温度>70）
+  offensive:
+    momentum: 0.18
+    technical: 0.16
+    reversal: 0.14
+    money_flow: 0.10
+    north: 0.10
+    quality: 0.08
+    sentiment: 0.06
+    growth: 0.05
+    sector_mom: 0.05
+    lowvol: 0.03
+    analyst: 0.02
+    candlestick: 0.05    # 强势下形态突破更有效
+    volume_quality: 0.03
+    chip_safety: 0.01
+
+# 技术形态内部权重
+technical_breakdown:
+  bottom_breakout: 0.30
+  key_breakout: 0.25
+  ma_squeeze: 0.20
+  macd_golden: 0.15
+  pullback: 0.10
+
+# 共振加成：当多维度同时看多时的额外加分
+resonance_bonus:
+  enabled: true
+  threshold: 0.5           # 因子Z-score > 0.5 视为"看多"
+  min_dimensions: 3        # 至少3个维度看多才触发
+  bonus_pct: 0.10          # 额外加10%

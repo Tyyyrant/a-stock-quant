@@ -1,0 +1,32 @@
+# 风控与组合管理参数
+
+risk:
+  # 硬止损
+  stop_loss: -0.05           # -5%无条件止损
+  # 移动止损
+  trailing_stop: -0.08       # 从最高点回撤8%止损
+  # 止盈
+  take_profit: 0.15          # +15%止盈
+  # 最长持仓
+  max_hold_days: 20
+
+position:
+  max_single_stock: 0.20     # 单票最大20%
+  max_sector: 0.40           # 单板块最大40%
+  max_total: 0.80            # 总仓位上限80%
+
+blacklist:
+  exclude_st: true           # 排除ST
+  exclude_new_stocks_days: 60  # 排除上市不足60天新股
+  min_market_cap: 20         # 最小市值（亿）
+  min_avg_amount: 3000       # 最小日均成交额（万元）
+  max_pct_5d: 20             # 5日涨幅上限（不追高）
+  max_pct_20d: 50            # 20日涨幅上限
+
+liquidity:
+  max_position_pct_of_volume: 0.01   # 持仓不超过日均成交的1%
+
+barra_limits:
+  size_exposure: [-0.5, 0.5]         # 规模因子暴露范围
+  volatility_exposure: [-1.5, 1.0]   # 波动因子暴露范围（不持过高波）
+  max_industry_weight: 0.30          # 单一行业最大占比
