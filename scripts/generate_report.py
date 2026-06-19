@@ -28,8 +28,10 @@ try:
         idx_df = idx_df[idx_df["date"] <= date]
         diag = diagnose_market(idx_df, kmap)
         market_temp = diag.get("temperature", 50)
-        market_signal = diag.get("signal", "?")
-        market_regime = diag.get("recommended_weights", "normal")
+        market_signal_map = {"TRADE": "交易", "CAUTION": "谨慎", "SKIP": "观望"}
+        market_regime_map = {"offensive": "进攻", "normal": "观察", "defensive": "防御"}
+        market_signal = market_signal_map.get(diag.get("signal", "?"), diag.get("signal", "?"))
+        market_regime = market_regime_map.get(diag.get("recommended_weights", "normal"), "观察")
         market_vol = diag.get("vol_regime", "?")
     else:
         market_temp, market_signal, market_regime, market_vol = 50, "?", "normal", "?"
@@ -98,51 +100,41 @@ for _, row in df.iterrows():
         'wf_total':wf_total, 'wf_detail':' '.join(details) if details else '—'})
 warfare_picks = sorted(all_picks, key=lambda x: x['wf_total'], reverse=True)[:5]
 
-# ==== Track 3: 瓶颈 ====
-bn_path = '/tmp/bottleneck_final.json'
+# ==== Track 3: 瓶颈 (从CSV中过滤瓶颈卡位标的) ====
+bn_codes = df[df['sector'].str.contains('瓶颈|卡位', na=False)]['code'].head(8).tolist()
 bn_picks = []
-if os.path.exists(bn_path):
-    with open(bn_path) as f: bn = json.load(f)
-    seen = set()
-    for s in bn['all']:
-        if s['code'] in seen or 'ST' in s['name']: continue
-        seen.add(s['code']); bn_picks.append(s)
-    for s in bn['all']:
-        if s['code']=='002971' and s['code'] not in [x['code'] for x in bn_picks]:
-            bn_picks.append(s)
-    bn_picks.sort(key=lambda x: x['score'], reverse=True)
-    bn_picks = bn_picks[:5]
+for code in bn_codes:
+    market = 1 if code.startswith('6') else 0
+    dk = get_stock_kline(code, market, refresh=False)
+    if dk is None or len(dk) < 60: continue
+    dk = dk[dk['date'] <= date]
+    p = identify_all_patterns(dk, ticker=code); v = analyze_volume_price(dk); c = estimate_chip_distribution(dk)
+    try: fund = fetch_fundamentals(code, date)
+    except: fund = {}
+    name = fund.get('name','') or code
+    price = float(dk['close'].values[-1])
+    chg = (price / float(dk['close'].values[-2]) - 1) if len(dk) >= 2 else 0
+    bn_picks.append({'code':code,'name':name,'price':price,'chg_pct':round(chg*100,2),
+        'k_score':round(p.pattern_score,1),'v_score':v.get('volume_score',0),
+        'source':str(row.get('sector','瓶颈'))})
 
-# ==== Track 4: 涟漪 ====
-ripple_all = []; added = set()
-for mat_name, mat in MATERIAL_GRAPH.items():
-    for prod in mat.get('domestic_producers', []):
-        code = prod['code']
-        if code.startswith('688') or code in added: continue
-        added.add(code)
-        market = 1 if code.startswith('6') else 0
-        dk = get_stock_kline(code, market, refresh=False)
-        if dk is None or len(dk) < 60: continue
-        dk = dk[dk['date'] <= date]
-        p = identify_all_patterns(dk, ticker=code); v = analyze_volume_price(dk); c = estimate_chip_distribution(dk)
-        try: fund = fetch_fundamentals(code, date)
-        except: fund = {}
-        name = fund.get('name','') or prod['name']
-        if 'ST' in name: continue
-        price = float(dk['close'].values[-1])
-        chg = (price / float(dk['close'].values[-2]) - 1) if len(dk) >= 2 else 0
-        pe = fund.get('valuation',{}).get('pe_ttm',0) or 0
-        if pe < -100: continue
-        score = p.pattern_score*0.35 + v.get('volume_score',0)*0.3 + c.get('chip_score',0)*0.2
-        c_arr = dk['close'].values; up_days = 0
-        for i in range(len(c_arr)-1, max(0,len(c_arr)-8), -1):
-            if c_arr[i] > c_arr[i-1]: up_days += 1
-            else: break
-        if up_days <= 2: score += 8
-        ripple_all.append({'code':code,'name':name,'material':mat_name,'price':price,'chg_pct':round(chg*100,2),
-            'k_score':round(p.pattern_score,1),'v_score':v.get('volume_score',0),'score':score})
-ripple_all.sort(key=lambda x: x['score'], reverse=True)
-rip_picks = ripple_all[:5]
+# ==== Track 4: 涟漪 (从CSV中过滤新闻驱动标的) ====
+rip_codes = df[df['sector'].str.contains('新闻', na=False)]['code'].head(8).tolist()
+rip_picks = []
+for code in rip_codes:
+    market = 1 if code.startswith('6') else 0
+    dk = get_stock_kline(code, market, refresh=False)
+    if dk is None or len(dk) < 60: continue
+    dk = dk[dk['date'] <= date]
+    p = identify_all_patterns(dk, ticker=code); v = analyze_volume_price(dk); c = estimate_chip_distribution(dk)
+    try: fund = fetch_fundamentals(code, date)
+    except: fund = {}
+    name = fund.get('name','') or code
+    price = float(dk['close'].values[-1])
+    chg = (price / float(dk['close'].values[-2]) - 1) if len(dk) >= 2 else 0
+    rip_picks.append({'code':code,'name':name,'price':price,'chg_pct':round(chg*100,2),
+        'k_score':round(p.pattern_score,1),'v_score':v.get('volume_score',0),
+        'material':str(row.get('sector','涟漪')).replace('新闻:','')})
 
 # ==== Render ====
 def stock_row(s, extra_col=None, extra_style=None):
