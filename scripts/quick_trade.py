@@ -421,6 +421,7 @@ def deep_analyze(code, name, sector, target_date, kline_df=None, diagnosis=None)
         if abc["zone"] == "C":
             signal = "PASS"
             reasons_bear.append(f"⚠C区风险({abc['zone_reason']})")
+            print(f"    [股是股非] {code} C区毙: {abc['zone_reason']}")
 
         # 出货检测 — 高位倒灌/阳奉阴违/放量滞涨
         dist = detect_distribution_signal(kline_df)
@@ -430,12 +431,14 @@ def deep_analyze(code, name, sector, target_date, kline_df=None, diagnosis=None)
                     signal = "PASS"
                 bearish += 2
                 reasons_bear.append(f"⚠{ds['type']}: {ds['desc']}")
+            print(f"    [股是股非] {code} 出货信号: {[d['type'] for d in dist['signals']]}")
 
         # 量价异动 + 均线归位 加分
         anomaly = detect_volume_price_anomaly(kline_df)
         if anomaly["has_anomaly"]:
             bullish += anomaly["strength"] // 2
             reasons_bull.append(f"量价异动: {anomaly['type']}")
+            print(f"    [股是股非] {code} 量价异动+{anomaly['strength']//2}: {anomaly['type']}")
 
         ma_re = detect_ma_realignment(kline_df)
         if ma_re["realigning"]:
@@ -447,6 +450,7 @@ def deep_analyze(code, name, sector, target_date, kline_df=None, diagnosis=None)
         if washout["is_washout"]:
             bullish += 4
             reasons_bull.append(f"洗盘反包(强度{washout['strength']:.0f})")
+            print(f"    [股是股非] {code} 洗盘反包+4 强度{washout['strength']:.0f}")
     except Exception:
         pass
 
