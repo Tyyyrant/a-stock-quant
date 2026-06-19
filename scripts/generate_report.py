@@ -56,7 +56,7 @@ except Exception:
     top_sectors = ["PCB", "半导体", "先进封装"]
     n_sectors = 3
 
-# ==== Track 1: 板块共振 (从CSV中取Top5) ====
+# ==== Track 1: 板块共振(从CSV中取Top5) ====
 sector_codes = df[~df['sector'].str.contains('瓶颈|新闻|卡位', na=False)]['code'].head(5).tolist()
 sector_picks = []
 for code in sector_codes:
@@ -249,37 +249,37 @@ tr:nth-child(even) td{{background:#fafbfc}}
 <!-- ====== 2x2 TRACK GRID ====== -->
 <div class="grid2x2">
 
-<!-- Track 1: 板块共振 -->
+<!-- Track 1: 板块共振-->
 <div class="panel">
 <div class="panel-title" style="border-bottom-color:var(--t1)">
 <div class="icon" style="background:var(--t1)">共</div>
-<span class="txt">板块共振 Top 5</span>
+<span class="txt">板块共振</span>
 </div>
 <table>
 <tr><th>代码</th><th>名称</th><th style="text-align:right">现价</th><th style="text-align:right">涨跌</th><th style="text-align:right">K线</th><th style="text-align:right">量价</th></tr>
 {''.join(stock_row(s) for s in sector_picks)}
 </table>
-<div class="legend">{'·'.join(top_sectors)} 核心成分股强度 Top5</div>
+<div class="legend">{'·'.join(top_sectors)} 核心成分股强度</div>
 </div>
 
-<!-- Track 2: 战法信号 -->
+<!-- Track 2: 战法信号-->
 <div class="panel">
 <div class="panel-title" style="border-bottom-color:var(--t2)">
 <div class="icon" style="background:var(--t2)">战</div>
-<span class="txt">战法信号 Top 5</span>
+<span class="txt">战法信号</span>
 </div>
 <table>
 <tr><th>代码</th><th>名称</th><th style="text-align:right">现价</th><th style="text-align:right">涨跌</th><th style="text-align:right">K线</th><th style="text-align:right">量价</th><th>匹配战法</th></tr>
 {''.join(stock_row(s, s.get('wf_detail','—'), 'font-size:7px') for s in warfare_picks)}
 </table>
-<div class="legend"><span class="wf-tag wf-bsx">逼空星线</span><span class="wf-tag wf-lg">拉高抢筹</span><span class="wf-tag wf-aq">A区起涨</span><span class="wf-tag wf-lb">猎取B区</span> 战法总分 Top5</div>
+<div class="legend"><span class="wf-tag wf-bsx">逼空星线</span><span class="wf-tag wf-lg">拉高抢筹</span><span class="wf-tag wf-aq">A区起涨</span><span class="wf-tag wf-lb">猎取B区</span> 战法总分</div>
 </div>
 
-<!-- Track 3: 供应链瓶颈 -->
+<!-- Track 3: 供应链瓶颈-->
 <div class="panel">
 <div class="panel-title" style="border-bottom-color:var(--t3)">
 <div class="icon" style="background:var(--t3)">链</div>
-<span class="txt">供应链瓶颈 Top 5</span>
+<span class="txt">供应链瓶颈</span>
 </div>
 <table>
 <tr><th>代码</th><th>名称</th><th style="text-align:right">现价</th><th style="text-align:right">涨跌</th><th style="text-align:right">K线</th><th style="text-align:right">量价</th><th>瓶颈卡位</th></tr>
@@ -288,17 +288,17 @@ tr:nth-child(even) td{{background:#fafbfc}}
 <div class="legend">{bn_legend}</div>
 </div>
 
-<!-- Track 4: 新闻涟漪 -->
+<!-- Track 4: 新闻涟漪-->
 <div class="panel">
 <div class="panel-title" style="border-bottom-color:var(--t4)">
 <div class="icon" style="background:var(--t4)">闻</div>
-<span class="txt">新闻涟漪 Top 5</span>
+<span class="txt">新闻涟漪</span>
 </div>
 <table>
 <tr><th>代码</th><th>名称</th><th style="text-align:right">现价</th><th style="text-align:right">涨跌</th><th style="text-align:right">K线</th><th style="text-align:right">量价</th><th>关联新闻</th></tr>
 {''.join(stock_row(s, s.get('material',''), 'font-size:8px;color:var(--t4);font-weight:700') for s in rip_picks)}
 </table>
-<div class="legend">AI新闻推理 × 涟漪传播 → 概念→标的映射 Top5</div>
+<div class="legend">AI新闻推理 × 涟漪传播 → 概念→标的映射</div>
 </div>
 
 </div><!-- /grid2x2 -->
