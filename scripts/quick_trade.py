@@ -196,15 +196,34 @@ def enrich_with_board_data(sector_perf, target_date):
 # Layer 3: 板块内选代表股
 # ============================================================
 
-def pick_representative_stocks(sector_name, codes, kline_map, n=5):
+def pick_sector_leaders(sector_name, codes, kline_map, n=5):
     """
-    从板块中选 N 只代表股。策略:
-    - 排除科创板(688)
-    - 按当日涨幅 + 量比 + MA多头 综合评价
-    - 优先选有基本面数据的
+    选出真正带动板块上攻的领头羊。
+
+    四维评分:
+      1. 封板时间 (30分) — 越早封板越强，早盘>午盘>尾盘
+      2. 封单力度 (25分) — 涨停日量比 + 收盘在涨停价附近
+      3. 超额收益 (25分) — 个股涨幅 vs 板块涨幅中位数
+      4. 板块贡献 (20分) — 市值×超额涨幅 = 对板块指数的拉动
     """
+    from limit_up_analyzer import analyze_limit_up
+
     candidates = []
     fundamentals_map = load_fundamentals_for_codes(codes, refresh=False)
+
+    # 先算板块中位数涨幅（排除非正常值）
+    stock_chgs = []
+    for code in codes:
+        if code.startswith("688") or code not in kline_map:
+            continue
+        item = kline_map[code]
+        kline = item["kline"] if isinstance(item, dict) else item
+        if len(kline) < 2:
+            continue
+        c_arr = kline["close"].values
+        chg = (c_arr[-1] / c_arr[-2] - 1) if len(c_arr) >= 2 else 0
+        stock_chgs.append(chg)
+    sector_median_chg = np.median(stock_chgs) if stock_chgs else 0
 
     for code in codes:
         if code.startswith("688"):
@@ -219,37 +238,116 @@ def pick_representative_stocks(sector_name, codes, kline_map, n=5):
 
         c = kline["close"].values
         v = kline["volume"].values
-        latest = c[-1]
-        change_1d = (c[-1] / c[-2] - 1) if len(c) >= 2 else 0
-        vol_ratio = v[-1] / np.mean(v[-20:]) if len(v) >= 20 and np.mean(v[-20:]) > 0 else 1.0
+        h = kline["high"].values
+        o = kline["open"].values
 
-        # 均线多头
-        ma5 = np.mean(c[-5:]) if len(c) >= 5 else 0
-        ma20 = np.mean(c[-20:]) if len(c) >= 20 else 0
-        ma60 = np.mean(c[-60:]) if len(c) >= 60 else 0
-        bull_align = 1 if (ma5 > ma20 > ma60) else 0
+        latest = c[-1]
+        prev_close = c[-2] if len(c) >= 2 else latest
+        chg_1d = (latest / prev_close - 1)
+        vol_ratio = v[-1] / np.mean(v[-20:]) if len(v) >= 20 and np.mean(v[-20:]) > 0 else 1.0
 
         # 基本面
         fund = fundamentals_map.get(code, {})
         pe = fund.get("pe_ttm", 0) or fund.get("pe", 0) or 0
         name = fund.get("name", "") or item.get("info", {}).get("name", "")
+        mcap = fund.get("mcap_yi", 0) or fund.get("mcap", 0) or 10  # 亿
 
-        # 综合分
-        score = (
-            change_1d * 40 +          # 涨幅权重
-            min(vol_ratio, 3) * 10 +  # 量比(封顶)
-            bull_align * 20           # 均线多头加分
-        )
+        # ==== 1. 封板时间 (30分) ====
+        lu = analyze_limit_up(code, kline)
+        seal_score = 0
+        seal_label = ""
+        if lu.get("is_limit_up"):
+            seal_time = lu.get("seal_time_est", "")
+            if "早盘" in str(seal_time):
+                seal_score = 30
+                seal_label = "早盘封板"
+            elif "午盘" in str(seal_time) or "上午" in str(seal_time):
+                seal_score = 22
+                seal_label = "午盘封板"
+            elif "尾盘" in str(seal_time):
+                seal_score = 10
+                seal_label = "尾盘封板"
+            else:
+                # 收盘在涨停价附近 = 封住了但时间未知，按中档
+                calc_limit = round(prev_close * 1.1, 2)
+                if h[-1] >= calc_limit * 0.99:
+                    seal_score = 18
+                    seal_label = "涨停封住"
+            # 连续板加分
+            if lu.get("position_label") and "连板" in str(lu.get("position_label")):
+                seal_score = min(30, seal_score + 8)
+                seal_label += "(连板)"
+        elif chg_1d > 0.05:
+            # 未涨停但涨幅>5% = 强势未封
+            seal_score = 8
+            seal_label = "强势未封"
+        elif chg_1d > 0.02:
+            seal_score = 3
+            seal_label = "温和上涨"
+
+        # ==== 2. 封单/量能力度 (25分) ====
+        # 涨停票: 封板量越大越好 / 未涨停: 量比健康为佳
+        if lu.get("is_limit_up"):
+            # 涨停日量比: 太小=无量空涨，太大=出货嫌疑
+            if 1.5 < vol_ratio < 5:
+                force_score = 25
+            elif 0.8 <= vol_ratio <= 1.5:
+                force_score = 18  # 缩量涨停(最强封单)
+            elif vol_ratio > 5:
+                force_score = 12  # 量太大，有分歧
+            else:
+                force_score = 10
+        else:
+            if 1.2 < vol_ratio < 3:
+                force_score = 15  # 放量上攻
+            elif vol_ratio >= 3:
+                force_score = 10  # 量过大
+            else:
+                force_score = 5
+
+        # ==== 3. 超额收益 (25分) ====
+        excess = chg_1d - sector_median_chg
+        if excess > 0.05:
+            excess_score = 25
+        elif excess > 0.02:
+            excess_score = 18
+        elif excess > 0:
+            excess_score = 10
+        elif excess > -0.02:
+            excess_score = 3
+        else:
+            excess_score = 0  # 拖后腿
+
+        # ==== 4. 板块贡献 (20分) ====
+        contribution = mcap * max(excess, 0) * 100
+        if contribution > 5:
+            contrib_score = 20
+        elif contribution > 1:
+            contrib_score = 12
+        elif contribution > 0.1:
+            contrib_score = 6
+        else:
+            contrib_score = 0
+
+        leader_score = seal_score + force_score + excess_score + contrib_score
 
         candidates.append({
             "code": code, "name": name, "close": latest,
-            "change_pct": change_1d, "vol_ratio": vol_ratio,
-            "pe": pe, "bull_align": bool(bull_align),
-            "score": score,
+            "change_pct": chg_1d, "vol_ratio": vol_ratio,
+            "pe": pe, "mcap": mcap,
+            "score": round(leader_score, 1),
+            "excess_pct": round(excess * 100, 1),
+            "seal_label": seal_label,
+            "sector_median": round(sector_median_chg * 100, 1),
         })
 
     candidates.sort(key=lambda x: x["score"], reverse=True)
     return candidates[:n]
+
+
+# 保留旧函数名作为别名
+def pick_representative_stocks(sector_name, codes, kline_map, n=5):
+    return pick_sector_leaders(sector_name, codes, kline_map, n)
 
 
 # ============================================================
@@ -615,12 +713,16 @@ def run(target_date=None, top_sectors=TOP_SECTORS, per_sector=TOP_PER_SECTOR):
     for _, sr in top_sector_list.iterrows():
         sec = sr["sector"]
         sec_codes = [c for c, s in stock_sector_map.items() if s == sec and c in kline_map]
-        picks = pick_representative_stocks(sec, sec_codes, kline_map, n=per_sector)
+        picks = pick_sector_leaders(sec, sec_codes, kline_map, n=per_sector)
         for p in picks:
             p["sector"] = sec
             p["resonance"] = sr["resonance_score"]
         all_picks.extend(picks)
-        print(f"  {sec}: {len(picks)} 只 ({len(sec_codes)} 只候选)")
+        leaders_str = " | ".join(
+            f"{p['name']}({p['score']:.0f}分{'🔥'+p['seal_label'] if p.get('seal_label') else ''})"
+            for p in picks[:3]
+        )
+        print(f"  {sec}: {len(picks)}只领头羊 | {leaders_str}")
 
     # ========== Layer 3.5: 细分概念 + 龙头识别 ==========
     print(f"\n[Layer 3.5] 细分概念归类 + 龙头识别...")
@@ -886,6 +988,12 @@ def run(target_date=None, top_sectors=TOP_SECTORS, per_sector=TOP_PER_SECTOR):
             kline = item["kline"] if isinstance(item, dict) else item
             result = deep_analyze(code, name, sec, target_date, kline_df=kline, diagnosis=diagnosis)
 
+            # 注入领头羊评分 (从 Layer 3 pick 透传)
+            if result and pick.get("score"):
+                result["leader_score"] = pick["score"]
+                result["excess_pct"] = pick.get("excess_pct", 0)
+                result["seal_label"] = pick.get("seal_label", "")
+
             # 注入消息面
             if result and sec in news_data:
                 nd = news_data[sec]
@@ -984,7 +1092,16 @@ def run(target_date=None, top_sectors=TOP_SECTORS, per_sector=TOP_PER_SECTOR):
             relevant = [t for t in sub_tags if t in meaningful_subs][:5]
             if relevant:
                 print(f"     🏷 细分标签: {', '.join(relevant)}")
-        print(f"     消息: {ns} ({r.get('news_mentions',0)}条) | 共振分: 板块排名#{i}")
+        leader_score = r.get('leader_score', 0)
+        excess_pct = r.get('excess_pct', 0)
+        seal = r.get('seal_label', '')
+        if leader_score > 0:
+            leader_info = f"领头羊{leader_score:.0f}分 超额{excess_pct:+.1f}%"
+            if seal:
+                leader_info += f" {seal}"
+            print(f"     消息: {ns} ({r.get('news_mentions',0)}条) | {leader_info}")
+        else:
+            print(f"     消息: {ns} ({r.get('news_mentions',0)}条)")
         print(f"     看多: {'; '.join(r['reasons_bull'])}")
         if r['reasons_bear']:
             print(f"     看空: {'; '.join(r['reasons_bear'])}")
