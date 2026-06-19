@@ -58,23 +58,63 @@ def analyze_news(news_items: list[dict], output_path: str = None) -> dict:
     若无 API key，则保存提示词等待手动分析。
     """
     prompt = prepare_news_prompt(news_items)
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    # Auto-detect from Claude Code config or env
+    api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN", "")
+    base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
+    model = os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", "deepseek-v4-pro")
+    # Also check settings.json
+    if not api_key:
+        try:
+            settings_path = str(Path.home() / ".claude" / "settings.json")
+            if os.path.exists(settings_path):
+                with open(settings_path) as f:
+                    s = json.load(f)
+                env = s.get("env", {})
+                api_key = env.get("ANTHROPIC_AUTH_TOKEN", "")
+                base_url = env.get("ANTHROPIC_BASE_URL", base_url)
+                model = env.get("ANTHROPIC_DEFAULT_SONNET_MODEL", model)
+        except Exception:
+            pass
 
     if api_key:
         try:
             import anthropic
-            client = anthropic.Anthropic(api_key=api_key)
+            kwargs = {"api_key": api_key}
+            if base_url:
+                kwargs["base_url"] = base_url
+            client = anthropic.Anthropic(**kwargs)
             msg = client.messages.create(
-                model="claude-sonnet-4-6",
+                model=model,
                 max_tokens=2000,
                 messages=[{"role": "user", "content": prompt + "\n\n只输出JSON，不要其他文字。"}],
+                extra_body={"thinking": {"type": "disabled"}},  # 关闭思考模式
             )
-            text = msg.content[0].text
-            # Extract JSON from response
+            # Handle different response formats (Anthropic vs DeepSeek)
+            text = ""
+            for block in msg.content:
+                # DeepSeek ThinkingBlock has 'thinking', Anthropic TextBlock has 'text'
+                if hasattr(block, 'text') and block.text:
+                    text += block.text
+                if hasattr(block, 'thinking') and block.thinking:
+                    text += block.thinking
+            if not text:
+                text = str(msg.content)
+            # Debug: save raw response
+            print(f"  AI原始响应({len(text)}字符): {text[:200]}...")
+            # Extract JSON from response (robust)
             start = text.find("{")
             end = text.rfind("}") + 1
             if start >= 0 and end > start:
-                result = json.loads(text[start:end])
+                json_str = text[start:end]
+                # Fix common JSON issues from LLM output
+                import re
+                json_str = re.sub(r',\s*}', '}', json_str)  # trailing comma
+                json_str = re.sub(r',\s*]', ']', json_str)
+                try:
+                    result = json.loads(json_str)
+                except json.JSONDecodeError as je:
+                    print(f"  JSON解析失败@{je.lineno}: {json_str[je.pos-20:je.pos+20] if hasattr(je,'pos') else ''}")
+                    result = {"impact_events": [], "raw": text[:500], "parse_error": str(je)}
                 result["status"] = "auto_analyzed"
                 if output_path:
                     os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -96,7 +136,7 @@ def analyze_news(news_items: list[dict], output_path: str = None) -> dict:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         with open(output_path, 'w') as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
-        print(f"无API key，提示词已保存: {output_path}")
+        print(f"提示词已保存: {output_path} (设置ANTHROPIC_AUTH_TOKEN环境变量可自动分析)")
     return result
 
 
