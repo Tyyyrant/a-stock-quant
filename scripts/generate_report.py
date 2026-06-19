@@ -21,8 +21,8 @@ df = pd.read_csv(csv_path)
 df['code'] = df['code'].astype(str).str.zfill(6)
 df = df[~df['name'].str.contains('ST', na=False)]
 
-# ==== Track 1: 板块共振 ====
-sector_codes = ['300223','301217','300661','002938','600667']
+# ==== Track 1: 板块共振 (从CSV中取Top5) ====
+sector_codes = df[~df['sector'].str.contains('瓶颈|新闻|卡位', na=False)]['code'].head(5).tolist()
 sector_picks = []
 for code in sector_codes:
     market = 1 if code.startswith('6') else 0
