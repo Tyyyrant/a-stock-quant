@@ -123,23 +123,36 @@ def detect_all_warfare(code: str, df: pd.DataFrame) -> dict:
     }
 
     # ================================================================
-    # 2. 猎取B区 (严格按文档)
+    # 2. 猎取B区 (金叉2日内)
     # ================================================================
     lb_met = []; lb_miss = []
 
-    # 多头排列: MA10 > MA30
+    # 多头排列: MA10 > MA30 且在金叉2日内
     ma30 = pd.Series(c).rolling(30).mean().values
     bull_align = ma10[idx] > ma30[idx]
-    prev_bull_align = ma10[idx-1] > ma30[idx-1] if idx >= 1 else False
-    # CROSS(多头排列, 0.5): 今日为真且昨日为假
-    first_cross = bull_align and not prev_bull_align
-    (lb_met if first_cross else lb_miss).append("首次金叉" if first_cross else f"非首次(已在MA30上)")
+    # 检查当日/前1日/前2日是否发生金叉
+    cross_within_2d = False
+    cross_day = -1
+    for d in [0, 1, 2]:
+        if idx-d < 1: continue
+        today = ma10[idx-d] > ma30[idx-d]
+        yesterday = ma10[idx-d-1] > ma30[idx-d-1]
+        if today and not yesterday:
+            cross_within_2d = True
+            cross_day = d
+            break
+    if cross_within_2d:
+        lb_met.append(f"金叉{cross_day}日内")
+    elif bull_align:
+        lb_miss.append(f"已金叉超2日(仍在MA30上)")
+    else:
+        lb_miss.append("未金叉MA30")
 
     # 趋势确认: MA10 > REF(MA10,1)
     ma10_up = ma10[idx] > ma10[idx-1] if idx >= 1 else False
-    (lb_met if ma10_up else lb_miss).append("MA10上翘")
+    (lb_met if ma10_up else lb_miss).append("MA10上翘" if ma10_up else "MA10未翘")
 
-    lb_triggered = first_cross and ma10_up
+    lb_triggered = cross_within_2d and ma10_up
     result["猎取B区"] = {
         "triggered": lb_triggered,
         "conditions_met": lb_met,
@@ -187,19 +200,19 @@ def detect_all_warfare(code: str, df: pd.DataFrame) -> dict:
     }
 
     # ================================================================
-    # 4. 拉高抢筹 (严格按文档 — 仅主板600/000)
+    # 4. 拉高抢筹 (放宽版 — 仅主板600/000, 5/7触发)
     # ================================================================
     lg_met = []; lg_miss = []
 
-    # 量比: VOL/REF(MA(VOL,5),1) > 2.0
+    # 量比: VOL/REF(MA(VOL,5),1) > 1.5 (放宽: 原2.0→1.5)
     prev_mv5 = mv5[idx-1] if idx >= 1 else mv5[idx]
     vol_ratio = v[idx] / prev_mv5 if prev_mv5 > 0 else 0
-    huge_vol = vol_ratio > 2.0
+    huge_vol = vol_ratio > 1.5
     (lg_met if huge_vol else lg_miss).append(f"量比{vol_ratio:.1f}")
 
-    # 单日涨幅: C/REF(C,1) > 1.045
+    # 单日涨幅: C/REF(C,1) > 1.035 (放宽: 原4.5%→3.5%)
     gain = c[idx] / c[idx-1] - 1 if idx >= 1 else 0
-    big_gain = gain > 0.045
+    big_gain = gain > 0.035
     (lg_met if big_gain else lg_miss).append(f"涨幅{gain*100:.1f}%")
 
     # 突破阳线实体: C/O > 1.03
@@ -212,24 +225,24 @@ def detect_all_warfare(code: str, df: pd.DataFrame) -> dict:
 
     # 均线多头排列: MA5>MA10>MA20
     bull_ma = ma5[idx] > ma10[idx] > ma20[idx] if idx >= 0 else False
-    (lg_met if bull_ma else lg_miss).append(f"多头排列")
+    (lg_met if bull_ma else lg_miss).append("多头排列" if bull_ma else "均线未多头")
 
     # 站稳5日线: C>MA5
     stand_ma5 = c[idx] > ma5[idx]
-    (lg_met if stand_ma5 else lg_miss).append(f"站MA5")
+    (lg_met if stand_ma5 else lg_miss).append("站MA5" if stand_ma5 else "未站MA5")
 
     # 主板过滤
     (lg_met if is_main_board else lg_miss).append("主板600/000")
 
-    # 非ST
-    lg_triggered = huge_vol and big_gain and yang_body and close_high and stand_ma5 and bull_ma and is_main_board
+    # 触发: 5/7条件满足即可 (放宽: 原7/7→5/7)
+    lg_triggered = len(lg_met) >= 5
     result["拉高抢筹"] = {
         "triggered": lg_triggered,
         "conditions_met": lg_met,
         "conditions_missed": lg_miss,
         "score": len(lg_met) * 3 if lg_triggered else max(0, (len(lg_met) - 2) * 3),
         "detail": " | ".join(lg_met) if lg_met else "未触发",
-        "wait_for": "结合颈线/箱体突破，注意量时空大压" if lg_triggered else "",
+        "wait_for": "结合颈线/箱体突破" if lg_triggered else "",
     }
 
     # ================================================================
