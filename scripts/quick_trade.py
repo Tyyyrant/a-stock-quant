@@ -822,33 +822,43 @@ def run(target_date=None, top_sectors=TOP_SECTORS, per_sector=TOP_PER_SECTOR):
     # ========== Layer 6: Agent 辩论 (对 Top BUY 标的) ==========
     agent_verdicts = {}
     if buy_results:
-        agent_top_n = len(buy_results)  # 全部验证，不设上限
-        print(f"\n[Layer 6] 7-Agent 完整辩论 (Top {agent_top_n} 标的)...")
-        for i, r in enumerate(buy_results[:agent_top_n]):
-            code = r["code"]
-            name = r["name"]
-            print(f"  [{i+1}/{agent_top_n}] {code} {name}...")
-            try:
-                agent_result = run_full_agent_debate(r, diagnosis)
-                if agent_result:
-                    agent_verdicts[code] = agent_result
-                    agent_final = agent_result.get("final", "")
-                    fatal = agent_result.get("fatal", [])
-                    if agent_final == "SELL":
+        agent_top_n = min(len(buy_results), 8)  # 真实辩论只跑Top8
+        print(f"\n[Layer 6] 真实7-Agent辩论 (DeepSeek API, Top {agent_top_n})...")
+        try:
+            from agent_debate import debate
+            for i, r in enumerate(buy_results[:agent_top_n]):
+                code = r["code"]
+                name = r["name"]
+                print(f"  [{i+1}/{agent_top_n}] {code} {name}...")
+                try:
+                    agent_result = debate(r)
+                    if agent_result:
+                        agent_verdicts[code] = agent_result
+                        agent_final = agent_result.get("final", "")
+                        if agent_final == "SELL":
+                            r["signal"] = "PASS"
+                            r["agent_note"] = f"❌ 7-Agent判SELL: {agent_result.get('verdict','')[:50]}"
+                        elif agent_final == "HOLD":
+                            r["signal"] = "PASS"
+                            r["agent_note"] = f"⚠️ 7-Agent判HOLD: {agent_result.get('verdict','')[:50]}"
+                        else:
+                            r["agent_note"] = f"✅ BUY | {agent_result.get('bull','')[:30]}"
+                            r["entry_low"] = agent_result.get("entry", r["entry_low"])
+                            r["stop"] = agent_result.get("stop", r["stop"])
+                            r["target"] = agent_result.get("target", r["target"])
+                    time.sleep(1)  # API限流
+                except Exception as e:
+                    print(f"    [ERR] {e}")
+        except Exception as e:
+            print(f"  Agent辩论跳过: {e}，使用规则降级")
+            # Fallback: use simplified debate for remaining
+            for i, r in enumerate(buy_results[:agent_top_n]):
+                if r["code"] not in agent_verdicts:
+                    ar = run_full_agent_debate(r, diagnosis)
+                    if ar and ar.get("final") == "SELL":
                         r["signal"] = "PASS"
-                        r["agent_note"] = f"❌ 7-Agent判SELL: {'; '.join(fatal[:2])}"
-                    elif agent_final == "HOLD":
-                        r["signal"] = "PASS"
-                        r["agent_note"] = f"⚠️ 7-Agent判HOLD: {agent_result.get('verdict','')}"
-                    else:
-                        r["agent_note"] = f"✅ 7-Agent确认BUY (Bull:{agent_result.get('bull_label','?')} Bear:{agent_result.get('bear_label','?')} Risk:{agent_result.get('risk_label','?')})"
-                        r["entry_low"] = agent_result.get("entry", r["entry_low"])
-                        r["stop"] = agent_result.get("stop", r["stop"])
-                        r["target"] = agent_result.get("target", r["target"])
-            except Exception as e:
-                print(f"    [ERR] {e}")
 
-        # 过滤掉Agent判SELL/HOLD的
+        # 过滤
         buy_results = [r for r in buy_results if r["signal"] != "PASS"]
         buy_results.sort(key=lambda x: x["net_score"], reverse=True)
 
