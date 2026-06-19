@@ -56,7 +56,7 @@ except Exception:
     top_sectors = ["PCB", "半导体", "先进封装"]
     n_sectors = 3
 
-# ==== Track 1: 板块共振(从CSV中取Top5) ====
+# ==== Track 1: 板块共振 (从CSV中取Top5, 含领头羊评分) ====
 sector_codes = df[~df['sector'].str.contains('瓶颈|新闻|卡位', na=False)]['code'].head(5).tolist()
 sector_picks = []
 for code in sector_codes:
@@ -71,9 +71,22 @@ for code in sector_codes:
     price = float(dk['close'].values[-1])
     chg = (price / float(dk['close'].values[-2]) - 1) if len(dk) >= 2 else 0
     lu = analyze_limit_up(code, dk)
+    # 从 CSV 取该 code 的共振板块
+    code_rows = df[df['code'] == code]
+    res_sec = str(code_rows.iloc[0].get('sector','')) if len(code_rows) > 0 else ''
+    leader_score = code_rows.iloc[0].get('leader_score', 0) if len(code_rows) > 0 else 0
+    excess_pct = code_rows.iloc[0].get('excess_pct', 0) if len(code_rows) > 0 else 0
+    seal = code_rows.iloc[0].get('seal_label', '') if len(code_rows) > 0 else ''
+    leader_tag = f'{res_sec} '
+    if leader_score > 0:
+        leader_tag += f'领头羊{leader_score:.0f}分'
+        if seal:
+            leader_tag += f' {seal}'
+    leader_tag = leader_tag[:30]
     sector_picks.append({'code':code,'name':name,'price':price,'chg_pct':round(chg*100,2),
         'k_score':round(p.pattern_score,1),'v_score':v.get('volume_score',0),
-        'lu_label':lu['quality_label'] if lu['is_limit_up'] else ''})
+        'lu_label':lu['quality_label'] if lu['is_limit_up'] else '',
+        'leader_tag': leader_tag})
 
 # ==== Track 2: 战法 ====
 all_picks = []
@@ -256,10 +269,10 @@ tr:nth-child(even) td{{background:#fafbfc}}
 <span class="txt">板块共振</span>
 </div>
 <table>
-<tr><th>代码</th><th>名称</th><th style="text-align:right">现价</th><th style="text-align:right">涨跌</th><th style="text-align:right">K线</th><th style="text-align:right">量价</th></tr>
-{''.join(stock_row(s) for s in sector_picks)}
+<tr><th>代码</th><th>名称</th><th style="text-align:right">现价</th><th style="text-align:right">涨跌</th><th style="text-align:right">K线</th><th style="text-align:right">量价</th><th>共振板块</th></tr>
+{''.join(stock_row(s, s.get('leader_tag',''), 'font-size:8px;color:var(--t1);font-weight:700') for s in sector_picks)}
 </table>
-<div class="legend">{'·'.join(top_sectors)} 核心成分股强度</div>
+<div class="legend">涨停时间·封单强度·超额收益·板块贡献 → 领头羊评分</div>
 </div>
 
 <!-- Track 2: 战法信号-->
