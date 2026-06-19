@@ -185,82 +185,126 @@ def stock_row(s, extra_col=None, extra_style=None):
     return f'<tr><td>{s["code"]}</td><td><strong>{s["name"]}</strong>{lu_str}</td><td style="text-align:right">{s["price"]:.2f}</td><td class="{chg_cls}" style="text-align:right">{chg:+.1f}%</td><td style="text-align:right;font-weight:700">{s.get("k_score",0):+.0f}</td><td class="{v_cls}" style="text-align:right">{v:+.0f}</td>{extra}</tr>\n'
 
 html = f'''<!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8"><style>
-:root{{--bg:#faf9f7;--card:#fff;--text:#1e1e1e;--muted:#78716c;--border:#e7e5e4;--up:#cc241d;--down:#1a8a1a;--warn:#d65d0e}}
+:root{{--bg:#f0f2f5;--card:#fff;--text:#1a1a2e;--muted:#8b8fa3;--border:#e8eaef;--up:#d4343e;--down:#1ca051;--t1:#e87400;--t2:#7c3aed;--t3:#b45309;--t4:#2563eb}}
 *{{margin:0;padding:0;box-sizing:border-box}}
-body{{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);padding:20px;max-width:1200px;margin:0 auto;font-weight:500}}
-.header{{background:linear-gradient(135deg,#292524,#44403c);color:#faf9f7;padding:20px 24px;border-radius:10px 10px 0 0}}
-.header h1{{font-size:19px;font-weight:800}}.header .sub{{font-size:11px;color:#a8a29e;margin-top:2px;font-weight:500}}
-.env-row{{display:flex;gap:16px;margin-top:14px}}.env-kv{{text-align:center;min-width:55px}}
-.env-kv .v{{font-size:22px;font-weight:900}}.env-kv .l{{font-size:9px;color:#a8a29e;text-transform:uppercase;font-weight:600}}
-.card{{background:var(--card);padding:0;border-bottom:1px solid var(--border)}}
-.card:last-of-type{{border-radius:0 0 10px 10px;border-bottom:none}}
-.row{{display:flex;gap:0;background:var(--card)}}
-.col{{flex:1;padding:16px 14px;border-right:1px solid var(--border);min-width:0}}
-.col:last-child{{border-right:none}}
-.col-title{{font-size:12px;font-weight:800;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid;display:flex;align-items:center;gap:6px}}
-.dot{{width:6px;height:6px;border-radius:50%;flex-shrink:0}}
-table{{width:100%;font-size:10px;border-collapse:collapse}}
-th{{color:var(--muted);font-size:8px;font-weight:700;text-align:left;padding:2px 1px 5px;border-bottom:1px solid var(--border)}}
-td{{padding:4px 1px;border-bottom:1px solid #f5f5f4;vertical-align:middle;font-weight:500}}
+body{{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);padding:24px;max-width:1100px;margin:0 auto;font-weight:500}}
+/* ── Header ── */
+.header{{background:linear-gradient(135deg,#1a1a2e 0%,#2d2d44 100%);color:#fff;padding:24px 32px;border-radius:12px 12px 0 0;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}}
+.header-left{{min-width:200px}}
+.header h1{{font-size:20px;font-weight:800;letter-spacing:1px}}
+.header .sub{{font-size:10px;color:#8890a8;margin-top:4px}}
+.metrics{{display:flex;gap:0}}
+.met{{text-align:center;padding:0 18px;border-left:1px solid rgba(255,255,255,0.12)}}
+.met:first-child{{border-left:none}}
+.met .val{{font-size:26px;font-weight:900;line-height:1.2}}
+.met .lab{{font-size:9px;color:#8890a8;text-transform:uppercase;letter-spacing:0.5px;font-weight:600}}
+/* ── 2x2 Grid ── */
+.grid2x2{{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:1px;background:var(--border);border-left:1px solid var(--border);border-right:1px solid var(--border)}}
+.panel{{background:var(--card);padding:20px 22px;display:flex;flex-direction:column}}
+.panel-title{{display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:2px solid}}
+.panel-title .icon{{width:20px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:900;flex-shrink:0}}
+.panel-title .txt{{font-size:12px;font-weight:800;letter-spacing:0.5px}}
+table{{width:100%;font-size:10px;border-collapse:collapse;flex:1}}
+th{{color:var(--muted);font-size:8px;font-weight:700;text-align:left;padding:3px 2px 6px;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:0.3px}}
+td{{padding:4px 2px;border-bottom:1px solid #f3f4f6;vertical-align:middle}}
 tr:last-child td{{border-bottom:none}}
+tr:nth-child(even) td{{background:#fafbfc}}
 .up{{color:var(--up);font-weight:700}}.dn{{color:var(--down);font-weight:700}}
-.wf-tag{{display:inline-block;font-size:8px;font-weight:700;padding:1px 3px;border-radius:2px;margin:1px;white-space:nowrap}}
-.wf-bsx{{background:#fff7ed;color:#b45309}}.wf-lg{{background:#fef2f2;color:#cc241d}}.wf-aq{{background:#eff6ff;color:#2563eb}}.wf-lb{{background:#f5f3ff;color:#7c3aed}}
-.footer{{text-align:center;color:var(--muted);font-size:9px;padding:12px}}
-.sec-title{{font-size:13px;font-weight:800;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:8px}}
-.sec-title::before{{content:'';width:3px;height:14px;background:var(--accent);border-radius:2px}}
-.legend{{font-size:8px;color:var(--muted);margin-top:6px;font-weight:500;line-height:1.6}}
+.wf-tag{{display:inline-block;font-size:7px;font-weight:700;padding:1px 4px;border-radius:2px;margin:1px;white-space:nowrap;letter-spacing:0.3px}}
+.wf-bsx{{background:#fff7ed;color:#c2410c}}.wf-lg{{background:#fef2f2;color:#dc2626}}.wf-aq{{background:#eff6ff;color:#2563eb}}.wf-lb{{background:#f5f3ff;color:#7c3aed}}
+.legend{{font-size:8px;color:var(--muted);margin-top:8px;line-height:1.5;padding-top:6px;border-top:1px solid #f3f4f6}}
+/* ── Top3 Section ── */
+.top3-wrap{{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:14px}}
+.top3-card{{background:var(--card);border-radius:10px;padding:18px 16px;border-top:3px solid;box-shadow:0 1px 3px rgba(0,0,0,0.04)}}
+.top3-card.gold{{border-top-color:#f0b90b}}
+.top3-card.silver{{border-top-color:#a0a0b0}}
+.top3-card.bronze{{border-top-color:#cd7f32}}
+.top3-card .medal{{font-size:22px;margin-bottom:6px}}
+.top3-card .stock-name{{font-size:14px;font-weight:800;margin-bottom:2px}}
+.top3-card .stock-code{{font-size:10px;color:var(--muted);margin-bottom:6px}}
+.top3-card .reason{{font-size:9px;color:var(--muted);line-height:1.5}}
+/* ── Backtest ── */
+.backtest{{background:var(--card);border-radius:0 0 12px 12px;padding:18px 32px;border-top:1px solid var(--border)}}
+.backtest h3{{font-size:11px;font-weight:800;margin-bottom:8px;color:var(--text)}}
+.backtest .stats{{display:flex;gap:24px;flex-wrap:wrap;font-size:11px}}
+.backtest .stat{{text-align:center}}
+.backtest .stat .big{{font-size:22px;font-weight:900}}
+.footer{{text-align:center;color:var(--muted);font-size:9px;padding:14px;letter-spacing:0.3px}}
 </style></head><body>
-<div class="header"><h1>量化短线复盘报告</h1><div class="sub">{date} 收盘 · 全A 5075只 · 四轨并行 · 涨停分析 · 亏损/ST过滤</div>
-<div class="env-row">
-<div class="env-kv"><div class="v" style="color:#34d399">{market_temp:.0f}</div><div class="l">大盘温度</div></div>
-<div class="env-kv"><div class="v" style="color:#fbbf24">{market_signal}</div><div class="l">交易信号</div></div>
-<div class="env-kv"><div class="v" style="color:#d65d0e">{market_regime}</div><div class="l">因子模式</div></div>
-<div class="env-kv"><div class="v">{n_sectors}</div><div class="l">共振板块</div></div>
-</div></div>
 
-<div class="card"><div class="row">
-<div class="col">
-<div class="col-title"><div class="dot" style="background:#d65d0e"></div>板块共振 Top 5</div>
+<!-- ====== HEADER ====== -->
+<div class="header">
+<div class="header-left">
+<h1>量化短线复盘报告</h1>
+<div class="sub">{date} 收盘 · 全A 5075只 · 四轨并行 · 涨停分析 · 亏损/ST过滤</div>
+</div>
+<div class="metrics">
+<div class="met"><div class="val" style="color:#34d399">{market_temp:.0f}</div><div class="lab">大盘温度</div></div>
+<div class="met"><div class="val" style="color:#fbbf24">{market_signal}</div><div class="lab">交易信号</div></div>
+<div class="met"><div class="val" style="color:#f97316">{market_regime}</div><div class="lab">因子模式</div></div>
+<div class="met"><div class="val">{n_sectors}</div><div class="lab">共振板块</div></div>
+</div>
+</div>
+
+<!-- ====== 2x2 TRACK GRID ====== -->
+<div class="grid2x2">
+
+<!-- Track 1: 板块共振 -->
+<div class="panel">
+<div class="panel-title" style="border-bottom-color:var(--t1)">
+<div class="icon" style="background:var(--t1)">共</div>
+<span class="txt">板块共振 Top 5</span>
+</div>
 <table>
 <tr><th>代码</th><th>名称</th><th style="text-align:right">现价</th><th style="text-align:right">涨跌</th><th style="text-align:right">K线</th><th style="text-align:right">量价</th></tr>
 {''.join(stock_row(s) for s in sector_picks)}
 </table>
-<div class="legend">{'·'.join(top_sectors)} 核心成分股强度Top5</div>
+<div class="legend">{'·'.join(top_sectors)} 核心成分股强度 Top5</div>
 </div>
-<div class="col">
-<div class="col-title"><div class="dot" style="background:#7c3aed"></div>战法信号 Top 5</div>
+
+<!-- Track 2: 战法信号 -->
+<div class="panel">
+<div class="panel-title" style="border-bottom-color:var(--t2)">
+<div class="icon" style="background:var(--t2)">战</div>
+<span class="txt">战法信号 Top 5</span>
+</div>
 <table>
 <tr><th>代码</th><th>名称</th><th style="text-align:right">现价</th><th style="text-align:right">涨跌</th><th style="text-align:right">K线</th><th style="text-align:right">量价</th><th>匹配战法</th></tr>
-{''.join(stock_row(s, s.get('wf_detail','—'), 'font-size:8px') for s in warfare_picks)}
+{''.join(stock_row(s, s.get('wf_detail','—'), 'font-size:7px') for s in warfare_picks)}
 </table>
-<div class="legend"><span class="wf-tag wf-bsx">逼空星线</span><span class="wf-tag wf-lg">拉高抢筹</span><span class="wf-tag wf-aq">A区起涨</span><span class="wf-tag wf-lb">猎取B区</span> 战法总分Top5</div>
+<div class="legend"><span class="wf-tag wf-bsx">逼空星线</span><span class="wf-tag wf-lg">拉高抢筹</span><span class="wf-tag wf-aq">A区起涨</span><span class="wf-tag wf-lb">猎取B区</span> 战法总分 Top5</div>
 </div>
-</div></div>
 
-<div class="card"><div class="row">
-<div class="col">
-<div class="col-title"><div class="dot" style="background:#b45309"></div>供应链瓶颈 Top 5</div>
+<!-- Track 3: 供应链瓶颈 -->
+<div class="panel">
+<div class="panel-title" style="border-bottom-color:var(--t3)">
+<div class="icon" style="background:var(--t3)">链</div>
+<span class="txt">供应链瓶颈 Top 5</span>
+</div>
 <table>
 <tr><th>代码</th><th>名称</th><th style="text-align:right">现价</th><th style="text-align:right">涨跌</th><th style="text-align:right">K线</th><th style="text-align:right">量价</th><th>瓶颈卡位</th></tr>
-{''.join(stock_row(s, s.get('layer','')+'·'+s.get('source',''), 'font-size:8.5px;color:var(--warn);font-weight:600') for s in bn_picks)}
+{''.join(stock_row(s, s.get('layer','')+'·'+s.get('source',''), 'font-size:8px;color:var(--t3);font-weight:700') for s in bn_picks)}
 </table>
-	<div class="legend">{bn_legend}</div>
-<div class="col">
-<div class="col-title"><div class="dot" style="background:#2563eb"></div>新闻涟漪 Top 5</div>
-<table>
-<tr><th>代码</th><th>名称</th><th style="text-align:right">现价</th><th style="text-align:right">涨跌</th><th style="text-align:right">K线</th><th style="text-align:right">量价</th><th>关联材料</th></tr>
-{''.join(stock_row(s, s.get('material',''), 'font-size:9px;color:var(--aq);font-weight:600') for s in rip_picks)}
-</table>
-<div class="legend">28种材料知识图谱×新闻关键词 → 涟漪传播 → 国产替代标的</div>
+<div class="legend">{bn_legend}</div>
 </div>
-</div></div>
 
-<div class="card" style="margin-top:16px;border-radius:10px">
-<div class="card" style="margin-top:16px;border-radius:10px;background:linear-gradient(135deg,#292524,#44403c);color:#faf9f7">
-<div style="padding:20px 24px">
-<div style="font-size:15px;font-weight:800;margin-bottom:4px">⭐ 最推荐 Top 3</div>
-<div style="font-size:10px;color:#a8a29e;margin-bottom:16px">综合强度 + 7-Agent 辩论排序 · 明日开盘优先买入</div>
+<!-- Track 4: 新闻涟漪 -->
+<div class="panel">
+<div class="panel-title" style="border-bottom-color:var(--t4)">
+<div class="icon" style="background:var(--t4)">闻</div>
+<span class="txt">新闻涟漪 Top 5</span>
+</div>
+<table>
+<tr><th>代码</th><th>名称</th><th style="text-align:right">现价</th><th style="text-align:right">涨跌</th><th style="text-align:right">K线</th><th style="text-align:right">量价</th><th>关联新闻</th></tr>
+{''.join(stock_row(s, s.get('material',''), 'font-size:8px;color:var(--t4);font-weight:700') for s in rip_picks)}
+</table>
+<div class="legend">AI新闻推理 × 涟漪传播 → 概念→标的映射 Top5</div>
+</div>
+
+</div><!-- /grid2x2 -->
+
+<!-- ====== TOP 3 PICKS ====== -->
+<div class="top3-wrap">
 '''
 # Build top 3 from CSV data
 import pandas as pd
@@ -273,35 +317,38 @@ agent_reasons = {
     '太极实业': '量价-8全场最健康·均线多头·三白兵形态·PE95可接受·7-Agent一致看多',
     '世名科技': '涨停质量73·PCB板块利好·K线+46+筹码锁定·7-Agent确认强势涨停延续',
     '和远气体': '瓶颈卡位L5材料·涨停+10%·供应链独立逻辑·7-Agent验证通过',
-    '鹏鼎控股': '双料龙头2769亿·K线100满分涨停·封装基板瓶颈·三轨共振',
-    '新广益': '涨停+20%·K线+31·筹码+25安全·7-Agent确认延续',
+    '鹏鼎控股': '双料龙头2769亿·K线100满分·封装基板瓶颈·三轨共振',
+    '新广益': '涨停+20%·K线+80·均线多头·7-Agent确认强势涨停',
     '实益达': 'K线+87·光学龙头·涨停+3.2%·战法逼空+拉高双信号',
-    '富乐德': '半导体设备·K线+45·均线多头·PE88合理·RSI健康',
-    '领先股份': 'K线+38·涨停+10%·量价-17可接受·7-Agent通过',
-    '汉钟精机': '瓶颈卡位·涨停+10%·PE39合理·量价-40需警惕',
-    '莱宝高科': '涨停+9.2%·PE48合理·7-Agent判SELL(财务费>利润)',
-    '旷达科技': 'K线+43·PE46合理·跟随国产芯片龙头·量价偏弱',
+    '富乐德': '半导体设备·K线+44·均线多头·PE88合理·RSI健康',
+    '翔鹭钨业': '钨材龙头·涨停+10%·K线满分·电子特气上游·战法逼空+拉高',
 }
+medals = [('gold','🥇'),('silver','🥈'),('bronze','🥉')]
 for i, (_, row) in enumerate(df_top.iterrows()):
     code = row['code']; name = str(row.get('name',''))
     reason = agent_reasons.get(name, '多因子共振·7-Agent验证通过')
-    medal = ['🥇','🥈','🥉'][i]
-    html += f'''<div style="display:flex;align-items:flex-start;gap:14px;padding:14px 0;border-bottom:{'none' if i==2 else '1px solid rgba(255,255,255,0.1)'}">
-<div style="font-size:28px;flex-shrink:0">{medal}</div>
-<div style="flex:1">
-<div style="font-size:16px;font-weight:800">{code} {name}</div>
-<div style="font-size:12px;color:#a8a29e;margin-top:4px;line-height:1.6">{reason}</div>
-</div></div>\n'''
-html += '''</div></div>
+    mcls, medal = medals[i]
+    html += f'''<div class="top3-card {mcls}">
+<div class="medal">{medal}</div>
+<div class="stock-name">{name}</div>
+<div class="stock-code">{code}</div>
+<div class="reason">{reason}</div>
+</div>\n'''
+html += '''</div>
 
-<div class="sec-title" style="padding:16px 14px 0">昨日(6.17)推荐验证</div>
-<div style="padding:0 14px 14px;font-size:11px;line-height:1.8">
-昨日推荐9只，今日(6.18)实际表现：<br>
-🟢 上涨 <b>7/9 (78%)</b> · 🔥 涨停 <b>4只</b> · 平均涨幅 <b style="color:#cc241d">+8.4%</b><br>
-🏆 世名科技 <b style="color:#cc241d">+20%</b> · 太极实业 <b style="color:#cc241d">+10%</b> · 和远气体 <b style="color:#cc241d">+10%</b> · 领先股份 <b style="color:#cc241d">+10%</b> · 北京君正 <b style="color:#cc241d">+8.4%</b><br>
-🔴 下跌2只：莱宝高科 -4.8% · 旷达科技 -0.3%<br>
-<span style="color:var(--muted)">亏损PE&lt;-100+ST自动过滤</span>
-</div></div>
+<!-- ====== BACKTEST ====== -->
+<div class="backtest">
+<h3>📋 昨日(6.17)推荐验证</h3>
+<div class="stats">
+<div class="stat"><div class="big" style="color:var(--up)">7/9</div><div class="lab">上涨率</div></div>
+<div class="stat"><div class="big" style="color:var(--up)">4只</div><div class="lab">涨停</div></div>
+<div class="stat"><div class="big" style="color:var(--up)">+8.4%</div><div class="lab">平均涨幅</div></div>
+<div class="stat" style="flex:1;font-size:10px;color:var(--muted);text-align:left;padding-left:16px;border-left:1px solid var(--border);min-width:200px">
+🏆 世名科技 +20% · 太极实业 +10% · 和远气体 +10% · 领先股份 +10% · 北京君正 +8.4%<br>
+🔴 莱宝高科 -4.8% · 旷达科技 -0.3%
+</div>
+</div>
+</div>
 
 <div class="footer">quant · 四轨并行 · 亏损PE&lt;-100+ST自动过滤 · 仅供参考</div>
 </body></html>'''
