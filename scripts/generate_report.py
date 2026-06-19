@@ -77,12 +77,7 @@ for code in sector_codes:
     leader_score = code_rows.iloc[0].get('leader_score', 0) if len(code_rows) > 0 else 0
     excess_pct = code_rows.iloc[0].get('excess_pct', 0) if len(code_rows) > 0 else 0
     seal = code_rows.iloc[0].get('seal_label', '') if len(code_rows) > 0 else ''
-    leader_tag = f'{res_sec} '
-    if leader_score > 0:
-        leader_tag += f'领头羊{leader_score:.0f}分'
-        if seal:
-            leader_tag += f' {seal}'
-    leader_tag = leader_tag[:30]
+    leader_tag = f'{res_sec} 领头羊{leader_score:.0f}分' if leader_score > 0 else res_sec
     sector_picks.append({'code':code,'name':name,'price':price,'chg_pct':round(chg*100,2),
         'k_score':round(p.pattern_score,1),'v_score':v.get('volume_score',0),
         'lu_label':lu['quality_label'] if lu['is_limit_up'] else '',
