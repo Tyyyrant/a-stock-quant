@@ -106,7 +106,7 @@ bn_picks_from_file = []
 if os.path.exists(bn_path):
     try:
         with open(bn_path) as f: bn_data = json.load(f)
-        for s in bn_data.get("verified_top", [])[:8]:
+        for s in bn_data.get("verified_top", [])[:5]:
             bn_picks_from_file.append({
                 'code': s['code'], 'name': s.get('name',''), 'price': s.get('price',0),
                 'chg_pct': s.get('chg_pct',0), 'k_score': s.get('k_score',0),
@@ -168,12 +168,12 @@ rip_picks = scored[:5]  # 只取Top5
 bn_legend = "材料图谱×供应链关键词 → 概念→标的动态发现 → 技术面验证"
 if bn_picks_from_file:
     mat_cats = set()
-    for s in bn_picks_from_file[:8]:
+    for s in bn_picks_from_file[:5]:
         src = s.get('source','')
         if src:
             mat_cats.update(src.split(','))
     if mat_cats:
-        bn_legend = '·'.join(sorted(mat_cats)[:8]) + ' 瓶颈标的'
+        bn_legend = '·'.join(sorted(mat_cats)[:5]) + ' 瓶颈标的'
 
 # ==== Render ====
 def stock_row(s, extra_col=None, extra_style=None):
