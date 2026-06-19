@@ -402,13 +402,10 @@ def deep_analyze(code, name, sector, target_date, kline_df=None, diagnosis=None)
     elif net >= 2: signal = "BUY"
     else: signal = "PASS"
 
-    # 硬过滤: 严重亏损股 (PE<-100)，涨停质量>=80可豁免
-    if pe < -100:
-        if lu_result and lu_result.get("quality_score", 0) >= 80:
-            reasons_bull.append(f"涨停龙头豁免亏损(PE={pe:.0f})")
-        else:
-            signal = "PASS"
-            reasons_bear.append(f"⚠严重亏损(PE={pe:.0f})")
+    # 硬过滤: 亏损股一律毙（A股短线不碰亏损票）
+    if pe < 0:
+        signal = "PASS"
+        reasons_bear.append(f"⚠亏损股(PE={pe:.0f})")
 
     # ST股硬过滤
     if name and ('ST' in name or '*ST' in name):
