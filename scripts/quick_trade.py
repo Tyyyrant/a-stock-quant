@@ -50,11 +50,12 @@ MAX_SECTORS_CONSIDER = 10
 # Layer 1: 大盘温度
 # ============================================================
 
-def load_index_kline():
+def load_index_kline(refresh=False):
     from data_loader import fetch_index_kline
     cache_path = ROOT / "data" / "stocks" / "INDEX_1000300.parquet"
-    if not cache_path.exists():
-        df = fetch_index_kline("999999", market=1, count=300)
+    if refresh or not cache_path.exists():
+        # 999999有日期解析bug，用000001+腾讯fallback
+        df = fetch_index_kline("000001", market=1, count=300)
         if df is not None and len(df) >= 60:
             df.to_parquet(cache_path, index=False)
     return pd.read_parquet(cache_path)
