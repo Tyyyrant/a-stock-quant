@@ -38,7 +38,11 @@ try:
 except Exception:
     market_temp, market_signal, market_regime, market_vol = 50, "?", "normal", "?"
 
-# Compute sector resonance
+df = pd.read_csv(csv_path)
+df['code'] = df['code'].astype(str).str.zfill(6)
+df = df[~df['name'].str.contains('ST', na=False)]
+
+# Compute sector resonance from CSV data
 try:
     from collections import Counter
     sector_counts = Counter()
@@ -51,10 +55,6 @@ try:
 except Exception:
     top_sectors = ["PCB", "半导体", "先进封装"]
     n_sectors = 3
-
-df = pd.read_csv(csv_path)
-df['code'] = df['code'].astype(str).str.zfill(6)
-df = df[~df['name'].str.contains('ST', na=False)]
 
 # ==== Track 1: 板块共振 (从CSV中取Top5) ====
 sector_codes = df[~df['sector'].str.contains('瓶颈|新闻|卡位', na=False)]['code'].head(5).tolist()
@@ -100,23 +100,42 @@ for _, row in df.iterrows():
         'wf_total':wf_total, 'wf_detail':' '.join(details) if details else '—'})
 warfare_picks = sorted(all_picks, key=lambda x: x['wf_total'], reverse=True)[:5]
 
-# ==== Track 3: 瓶颈 (从CSV中过滤瓶颈卡位标的) ====
+# ==== Track 3: 瓶颈 (优先读bottleneck_full.json，fallback到CSV) ====
+bn_path = os.path.join(ROOT, "output", date, "bottleneck_full.json")
+bn_picks_from_file = []
+if os.path.exists(bn_path):
+    try:
+        with open(bn_path) as f: bn_data = json.load(f)
+        for s in bn_data.get("verified_top", [])[:8]:
+            bn_picks_from_file.append({
+                'code': s['code'], 'name': s.get('name',''), 'price': s.get('price',0),
+                'chg_pct': s.get('chg_pct',0), 'k_score': s.get('k_score',0),
+                'v_score': s.get('v_score',0),
+                'layer': s.get('layer',''), 'source': ','.join(s.get('materials',[])[:2]),
+            })
+    except Exception:
+        pass
+
 bn_codes = df[df['sector'].str.contains('瓶颈|卡位', na=False)]['code'].head(8).tolist()
-bn_picks = []
-for code in bn_codes:
-    market = 1 if code.startswith('6') else 0
-    dk = get_stock_kline(code, market, refresh=False)
-    if dk is None or len(dk) < 60: continue
-    dk = dk[dk['date'] <= date]
-    p = identify_all_patterns(dk, ticker=code); v = analyze_volume_price(dk); c = estimate_chip_distribution(dk)
-    try: fund = fetch_fundamentals(code, date)
-    except: fund = {}
-    name = fund.get('name','') or code
-    price = float(dk['close'].values[-1])
-    chg = (price / float(dk['close'].values[-2]) - 1) if len(dk) >= 2 else 0
-    bn_picks.append({'code':code,'name':name,'price':price,'chg_pct':round(chg*100,2),
-        'k_score':round(p.pattern_score,1),'v_score':v.get('volume_score',0),
-        'source':str(row.get('sector','瓶颈'))})
+# 优先使用 bottleneck_full.json 的完整数据，fallback到CSV
+if bn_picks_from_file:
+    bn_picks = bn_picks_from_file
+else:
+    bn_picks = []
+    for code in bn_codes:
+        market = 1 if code.startswith('6') else 0
+        dk = get_stock_kline(code, market, refresh=False)
+        if dk is None or len(dk) < 60: continue
+        dk = dk[dk['date'] <= date]
+        p = identify_all_patterns(dk, ticker=code); v = analyze_volume_price(dk); c = estimate_chip_distribution(dk)
+        try: fund = fetch_fundamentals(code, date)
+        except: fund = {}
+        name = fund.get('name','') or code
+        price = float(dk['close'].values[-1])
+        chg = (price / float(dk['close'].values[-2]) - 1) if len(dk) >= 2 else 0
+        bn_picks.append({'code':code,'name':name,'price':price,'chg_pct':round(chg*100,2),
+            'k_score':round(p.pattern_score,1),'v_score':v.get('volume_score',0),
+            'source':str(row.get('sector','瓶颈'))})
 
 # ==== Track 4: 涟漪 (从CSV中过滤新闻驱动标的) ====
 rip_codes = df[df['sector'].str.contains('新闻', na=False)]['code'].tolist()
@@ -140,6 +159,17 @@ for code in rip_codes:
         'score':round(score,1)})
 scored.sort(key=lambda x: x['score'], reverse=True)
 rip_picks = scored[:5]  # 只取Top5
+
+# 预计算瓶颈材料 legend (用于 HTML)
+bn_legend = "材料图谱×供应链关键词 → 概念→标的动态发现 → 技术面验证"
+if bn_picks_from_file:
+    mat_cats = set()
+    for s in bn_picks_from_file[:8]:
+        src = s.get('source','')
+        if src:
+            mat_cats.update(src.split(','))
+    if mat_cats:
+        bn_legend = '·'.join(sorted(mat_cats)[:6]) + ' 瓶颈标的'
 
 # ==== Render ====
 def stock_row(s, extra_col=None, extra_style=None):
@@ -211,8 +241,7 @@ tr:last-child td{{border-bottom:none}}
 <tr><th>代码</th><th>名称</th><th style="text-align:right">现价</th><th style="text-align:right">涨跌</th><th style="text-align:right">K线</th><th style="text-align:right">量价</th><th>瓶颈卡位</th></tr>
 {''.join(stock_row(s, s.get('layer','')+'·'+s.get('source',''), 'font-size:8.5px;color:var(--warn);font-weight:600') for s in bn_picks)}
 </table>
-<div class="legend">材料图谱×供应链关键词 → 概念→标的动态发现 → 技术面验证Top5</div>
-</div>
+	<div class="legend">{bn_legend}</div>
 <div class="col">
 <div class="col-title"><div class="dot" style="background:#2563eb"></div>新闻涟漪 Top 5</div>
 <table>

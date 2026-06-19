@@ -669,24 +669,63 @@ def run(target_date=None, top_sectors=TOP_SECTORS, per_sector=TOP_PER_SECTOR):
             leader = leader_board.get(tag, "?")
             print(f"    {tag}: {len(codes)}只 龙头={leader}")
 
-    # ========== Layer 3.6: 供应链瓶颈挖掘 ==========
-    print(f"\n[Layer 3.6] 供应链瓶颈挖掘...")
+    # ========== Layer 3.6: 供应链瓶颈挖掘 (全面发现引擎 v2) ==========
+    print(f"\n[Layer 3.6] 供应链瓶颈挖掘 (全面发现引擎 v2)...")
     bottleneck_stocks = []
-    from supply_chain_mapper import map_supply_chain
-    for _, sr in top_sector_list.iterrows():
-        sec = sr["sector"]
-        try:
-            sc = map_supply_chain(sec)
-            for lk, bl in sc.get("bottleneck_layers", {}).items():
-                for bs in bl.get("stocks", [])[:3]:
-                    bc = bs.get("code", "")
-                    if bc and bc not in [p["code"] for p in all_picks] and bc not in bottleneck_stocks:
-                        if not bc.startswith("688"):
-                            bottleneck_stocks.append(bc)
-            if bottleneck_stocks:
-                print(f"  {sec}: 瓶颈标的 {len(bottleneck_stocks)} 只")
-        except Exception as e:
-            pass
+    bottleneck_candidates_map = {}  # code -> material info
+    try:
+        from bottleneck_discovery import run_full_discovery as run_bn, load_all_stock_names
+        bn_all_stocks = load_all_stock_names()
+        resonant_sec_names = [sr["sector"] for _, sr in top_sector_list.iterrows()]
+        bn_result = run_bn(
+            resonant_sectors=resonant_sec_names,
+            target_date=target_date,
+            all_stocks=bn_all_stocks,
+            top_n=30,
+        )
+        for s in bn_result.get("verified_top", []):
+            code = s["code"]
+            if code not in [p["code"] for p in all_picks]:
+                bottleneck_stocks.append(code)
+                bottleneck_candidates_map[code] = s
+        print(f"  瓶颈标的: {len(bottleneck_stocks)} 只 (全部注入候选池)")
+
+        # 保存瓶颈数据供 report 使用
+        import json as _json
+        bn_output = {
+            "date": target_date,
+            "resonant_sectors": resonant_sec_names,
+            "total_materials_covered": bn_result.get("total_materials_covered", 0),
+            "total_candidates": bn_result.get("total_candidates", 0),
+            "by_sector": bn_result.get("by_sector", {}),
+            "materials_found": {
+                k: {"layer": v["layer"], "category": v["category"],
+                    "archetypes": v.get("archetypes", []), "total": v["total"],
+                    "stocks": v["stocks"]}
+                for k, v in bn_result.get("materials_found", {}).items()
+            },
+            "verified_top": bn_result.get("verified_top", []),
+        }
+        bn_save_path = ROOT / "output" / target_date / "bottleneck_full.json"
+        bn_save_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(bn_save_path, "w") as f:
+            _json.dump(bn_output, f, ensure_ascii=False, indent=2)
+        print(f"  瓶颈数据已保存: {bn_save_path}")
+    except Exception as e:
+        print(f"  瓶颈发现失败: {e}，使用旧版 map_supply_chain")
+        from supply_chain_mapper import map_supply_chain
+        for _, sr in top_sector_list.iterrows():
+            sec = sr["sector"]
+            try:
+                sc = map_supply_chain(sec)
+                for lk, bl in sc.get("bottleneck_layers", {}).items():
+                    for bs in bl.get("stocks", [])[:3]:
+                        bc = bs.get("code", "")
+                        if bc and bc not in [p["code"] for p in all_picks] and bc not in bottleneck_stocks:
+                            if not bc.startswith("688"):
+                                bottleneck_stocks.append(bc)
+            except Exception:
+                pass
 
     # 跨板块补全标的加入候选池
     for code, tag in cross_sector_additions:
@@ -706,18 +745,25 @@ def run(target_date=None, top_sectors=TOP_SECTORS, per_sector=TOP_PER_SECTOR):
                 "score": chg*40 + min(vol_r,3)*10, "resonance": 0,
             })
 
-    # 瓶颈标的加入候选池
-    for bc in bottleneck_stocks[:5]:
+    # 瓶颈标的加入候选池 (注入材料信息)
+    for bc in bottleneck_stocks:
         if bc in kline_map:
-            from data_loader import load_fundamentals_for_codes
-            bfund = load_fundamentals_for_codes([bc])
-            info = bfund.get(bc, {})
+            bn_info = bottleneck_candidates_map.get(bc, {})
+            bn_materials = bn_info.get("materials", [])
+            bn_layer = bn_info.get("layer", "瓶颈卡位")
+            bn_cat = bn_info.get("categories", [""])[0] if bn_info.get("categories") else ""
             all_picks.append({
-                "code": bc, "name": info.get("name", ""),
-                "sector": "瓶颈卡位",
-                "close": 0, "change_pct": 0,
-                "vol_ratio": 1.0, "pe": info.get("pe_ttm", 0) or 0,
-                "bull_align": True, "score": 0,
+                "code": bc,
+                "name": bn_info.get("name", ""),
+                "sector": f"瓶颈:{','.join(bn_materials[:2])}",
+                "bottleneck_layer": bn_layer,
+                "bottleneck_material": ",".join(bn_materials[:3]),
+                "close": bn_info.get("price", 0),
+                "change_pct": bn_info.get("chg_pct", 0),
+                "vol_ratio": 1.0,
+                "pe": bn_info.get("pe", 0),
+                "bull_align": True,
+                "score": bn_info.get("score", 0),
                 "resonance": 0,
             })
 
