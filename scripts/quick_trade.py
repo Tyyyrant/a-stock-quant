@@ -418,6 +418,12 @@ def deep_analyze(code, name, sector, target_date, kline_df=None, diagnosis=None)
     # 计算关键价位 — 短线用 MA5/MA10
     c = kline_df["close"].values
     latest_close = float(c[-1])
+    day_chg_pct = float((c[-1] / c[-2] - 1) * 100) if len(c) >= 2 else 0
+
+    # 当日大跌(>3%)不推荐
+    if signal != "PASS" and day_chg_pct < -3:
+        signal = "PASS"
+        reasons_bear.append(f"⚠当日跌{day_chg_pct:.1f}%")
     ma5 = float(np.mean(c[-5:])) if len(c) >= 5 else latest_close * 0.97
     ma10 = float(np.mean(c[-10:])) if len(c) >= 10 else latest_close * 0.95
     ma60 = float(np.mean(c[-60:])) if len(c) >= 60 else latest_close * 0.90

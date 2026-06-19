@@ -17,6 +17,39 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 date = sys.argv[1] if len(sys.argv) > 1 else "2026-06-17"
 csv_path = os.path.join(ROOT, "output", date, "trade_recommendations.csv")
 
+# Compute market diagnostic
+try:
+    from data_loader import load_universe_klines, pd
+    from market_diagnostic import diagnose_market
+    kmap = load_universe_klines(watchlist_only=False, refresh=False)
+    idx_path = os.path.join(ROOT, "data", "stocks", "INDEX_1000300.parquet")
+    if os.path.exists(idx_path):
+        idx_df = pd.read_parquet(idx_path)
+        idx_df = idx_df[idx_df["date"] <= date]
+        diag = diagnose_market(idx_df, kmap)
+        market_temp = diag.get("temperature", 50)
+        market_signal = diag.get("signal", "?")
+        market_regime = diag.get("recommended_weights", "normal")
+        market_vol = diag.get("vol_regime", "?")
+    else:
+        market_temp, market_signal, market_regime, market_vol = 50, "?", "normal", "?"
+except Exception:
+    market_temp, market_signal, market_regime, market_vol = 50, "?", "normal", "?"
+
+# Compute sector resonance
+try:
+    from collections import Counter
+    sector_counts = Counter()
+    for _, row in df.iterrows():
+        sec = str(row.get('sector',''))
+        if sec and '瓶颈' not in sec and '新闻' not in sec and '卡位' not in sec:
+            sector_counts[sec] += 1
+    top_sectors = [s for s, _ in sector_counts.most_common(3)]
+    n_sectors = len(top_sectors)
+except Exception:
+    top_sectors = ["PCB", "半导体", "先进封装"]
+    n_sectors = 3
+
 df = pd.read_csv(csv_path)
 df['code'] = df['code'].astype(str).str.zfill(6)
 df = df[~df['name'].str.contains('ST', na=False)]
@@ -149,10 +182,10 @@ tr:last-child td{{border-bottom:none}}
 </style></head><body>
 <div class="header"><h1>量化短线复盘报告</h1><div class="sub">{date} 收盘 · 全A 5075只 · 四轨并行 · 涨停分析 · 亏损/ST过滤</div>
 <div class="env-row">
-<div class="env-kv"><div class="v" style="color:#34d399">72</div><div class="l">大盘温度</div></div>
-<div class="env-kv"><div class="v" style="color:#fbbf24">TRADE</div><div class="l">交易信号</div></div>
-<div class="env-kv"><div class="v" style="color:#d65d0e">进攻</div><div class="l">因子模式</div></div>
-<div class="env-kv"><div class="v">3</div><div class="l">共振板块</div></div>
+<div class="env-kv"><div class="v" style="color:#34d399">{market_temp:.0f}</div><div class="l">大盘温度</div></div>
+<div class="env-kv"><div class="v" style="color:#fbbf24">{market_signal}</div><div class="l">交易信号</div></div>
+<div class="env-kv"><div class="v" style="color:#d65d0e">{market_regime}</div><div class="l">因子模式</div></div>
+<div class="env-kv"><div class="v">{n_sectors}</div><div class="l">共振板块</div></div>
 </div></div>
 
 <div class="card"><div class="row">
@@ -162,7 +195,7 @@ tr:last-child td{{border-bottom:none}}
 <tr><th>代码</th><th>名称</th><th style="text-align:right">现价</th><th style="text-align:right">涨跌</th><th style="text-align:right">K线</th><th style="text-align:right">量价</th></tr>
 {''.join(stock_row(s) for s in sector_picks)}
 </table>
-<div class="legend">PCB(94)·先进封装(88)·半导体(84) 核心成分股强度Top5</div>
+<div class="legend">{'·'.join(top_sectors)} 核心成分股强度Top5</div>
 </div>
 <div class="col">
 <div class="col-title"><div class="dot" style="background:#7c3aed"></div>战法信号 Top 5</div>
