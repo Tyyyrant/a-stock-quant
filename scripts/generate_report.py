@@ -153,9 +153,13 @@ for code in rip_codes:
     price = float(dk['close'].values[-1])
     chg = (price / float(dk['close'].values[-2]) - 1) if len(dk) >= 2 else 0
     score = p.pattern_score*0.35 + v.get('volume_score',0)*0.3 + c.get('chip_score',0)*0.2
+    # 从 CSV 查找该 code 对应的新闻主题 (不能用上级循环泄露的 row)
+    code_rows = df[df['code'] == code]
+    news_topic = str(code_rows.iloc[0].get('sector','涟漪')) if len(code_rows) > 0 else '涟漪'
+    news_topic = news_topic.replace('新闻:','').replace('新闻AI:','')
     scored.append({'code':code,'name':name,'price':price,'chg_pct':round(chg*100,2),
         'k_score':round(p.pattern_score,1),'v_score':v.get('volume_score',0),
-        'material':str(row.get('sector','涟漪')).replace('新闻:','').replace('新闻AI:',''),
+        'material':news_topic,
         'score':round(score,1)})
 scored.sort(key=lambda x: x['score'], reverse=True)
 rip_picks = scored[:5]  # 只取Top5
