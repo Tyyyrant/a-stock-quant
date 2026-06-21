@@ -542,24 +542,32 @@ def detect_volume_accumulation(kline_df) -> dict:
     """三度之厚度 — 底部量能堆积"""
     if len(kline_df) < 60: return {"has_thickness": False, "score": 0}
     c = kline_df["close"].values; v = kline_df["volume"].values; o = kline_df["open"].values
-    # 用 5-7 天短周期基准（用户诉求：不稀释近期量变）
-    v5 = np.mean(v[-6:-1]) if len(v) >= 6 else np.mean(v)      # 5日均量
-    v7 = np.mean(v[-8:-1]) if len(v) >= 8 else v5              # 7日均量
-    bv = v5 if v5 > 0 else np.mean(v)                           # 以5日均量为基准
-    tb = sum(1 for i in range(-7, -1) if v[i] > bv*1.5 and c[i] > o[i])  # 近7天>1.5x
-    wd = sum(1 for i in range(-7, -1) if v[i] > bv*1.2)                # 近7天>1.2x
-    yr = sum(1 for i in range(-7, -1) if c[i] > o[i]) / 7              # 7天阳量比
-    v_prev7 = np.mean(v[-14:-7]) if len(v) >= 14 else bv               # 前7天
-    acc = v5 > v_prev7*1.3; tup = v5 > v7*1.1                          # 加速+趋势
+    # 双基准：20日均量做放量门槛，5日均量做加速度
+    v20 = np.mean(v[-21:-1]) if len(v) >= 21 else np.mean(v)   # 20日均量(放量基线)
+    v5 = np.mean(v[-6:-1]) if len(v) >= 6 else v20             # 5日均量
+    v_prev7 = np.mean(v[-13:-6]) if len(v) >= 13 else v20      # 前7天均量
+    # 放量判断用20日均量（稳定），加速度用5日vs前7日
+    tb = sum(1 for i in range(-7, -1) if v[i] > v20*1.8 and c[i] > o[i])
+    wd = sum(1 for i in range(-7, -1) if v[i] > v20*1.2)
+    # 连阳检测：连续阳线天数
+    streak = 0
+    for i in range(-1, -8, -1):
+        if c[i] > o[i]: streak += 1
+        else: break
+    yr = sum(1 for i in range(-7, -1) if c[i] > o[i]) / 7
+    acc = v5 > v_prev7*1.3  # 近期加速
+    tup = v5 > v20*1.1      # 整体趋势向上
     sc = 0; rs = []
-    if tb >= 3: sc += 3; rs.append(f"近7天大阳量{tb}根")
+    if tb >= 3: sc += 3; rs.append(f"大阳量{tb}根")
     elif tb >= 1: sc += 1
-    if wd >= 5: sc += 2; rs.append(f"近7天放量{wd}天")
+    if wd >= 5: sc += 2; rs.append(f"放量{wd}天")
     elif wd >= 3: sc += 1
+    if streak >= 4: sc += 2; rs.append(f"连阳{streak}天")
+    elif streak >= 2: sc += 1
     if yr > 0.55: sc += 1; rs.append(f"阳量占比{yr:.0%}")
     if tup: sc += 1; rs.append("量能趋势向上")
     if acc: sc += 2; rs.append("量能加速放大")
-    return {"has_thickness": sc>=3, "score": sc, "reasons": rs, "tall_bars": tb, "wide_days": wd, "yang_ratio": round(yr,2), "vol_trend_up": tup, "vol_accel": acc}
+    return {"has_thickness": sc>=3, "score": sc, "reasons": rs, "tall_bars": tb, "wide_days": wd, "streak": streak, "yang_ratio": round(yr,2), "vol_trend_up": tup, "vol_accel": acc}
 
 
 def classify_pullup_intent(kline_df) -> dict:
