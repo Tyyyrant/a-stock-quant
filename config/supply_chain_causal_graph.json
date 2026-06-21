@@ -1,0 +1,590 @@
+{
+  "_meta": {
+    "version": "1.0",
+    "created": "2026-06-19",
+    "total_materials": 38,
+    "research_basis": "7组并行产业链研究，交叉验证公开研报、行业数据、公司财报",
+    "usage": "供 supply_chain_reasoning.py 加载，为 LLM 辩论注入产业链因果上下文"
+  },
+  "materials": {
+    "硅材料/硅片": {
+      "category": "半导体材料",
+      "demand_drivers": [
+        {"driver": "AI服务器耗硅", "mechanism": "AI服务器耗硅量是通用服务器3.8倍，HBM对12英寸硅片消耗是主流DRAM 3倍", "quantification": "AI先进制程月需求突破100万片"},
+        {"driver": "全球晶圆厂扩产", "mechanism": "2025-2028年全球12英寸重掺硅片需求年化增速20-30%", "quantification": "新增需求58万片/月"}
+      ],
+      "supply_constraints": [
+        {"constraint": "海外巨头垄断", "mechanism": "CR5=76%（信越/SUMCO/环球晶圆/Siltronic/SK Siltron），SUMCO推迟两座新厂建设", "quantification": "海外仅能提供43万片/月，缺口15万片/月"},
+        {"constraint": "涨价周期启动", "mechanism": "信越/SUMCO累计涨价15-22%，立昂微宣布7月起涨价10-15%", "quantification": "重掺硅片涨幅超50%"}
+      ],
+      "domestic_players": [
+        {"code": "688126", "name": "沪硅产业", "role": "12英寸硅片", "progress": "75万片/月，14nm完成验证"},
+        {"code": "002129", "name": "TCL中环", "role": "12英寸硅片", "progress": "70万片/月，通过台积电认证"},
+        {"code": "605358", "name": "立昂微", "role": "重掺硅片", "progress": "30万片/月，车规级龙头，7月涨价10-15%"}
+      ],
+      "self_sufficiency": "约20%（先进制程<5%）",
+      "investment_thesis": "量价齐升周期确认，海外巨头战略性收缩成熟制程，国产替代窗口确定性极强"
+    },
+    "光刻胶": {
+      "category": "半导体材料",
+      "demand_drivers": [
+        {"driver": "日本断供", "mechanism": "2025年11月日本将ArF/EUV光刻胶纳入出口管制，2026年1-2月海关进口报关量为零", "quantification": "ArF/KrF实质断供，库存仅撑3-6个月"}
+      ],
+      "supply_constraints": [
+        {"constraint": "日本绝对垄断", "mechanism": "日本全球市占率KrF≈80%、ArF≈87%、EUV≈92%", "quantification": "国产化率KrF≈3%、ArF<1%、EUV≈0%"},
+        {"constraint": "验证周期极长", "mechanism": "ArF胶需2-5年约5000片晶圆验证", "quantification": "6-18个月基础周期"}
+      ],
+      "domestic_players": [
+        {"code": "300346", "name": "南大光电", "role": "ArF光刻胶", "progress": "国内唯一规模量产ArF，通过中芯国际/长江存储验证，良率99.7%"},
+        {"code": "603650", "name": "彤程新材", "role": "KrF光刻胶", "progress": "KrF国内市占率第一超40%，ArF进入14nm验证"},
+        {"code": "300655", "name": "晶瑞电材", "role": "G/I线光刻胶", "progress": "G/I线市占率超70%，KrF进入长江存储"}
+      ],
+      "self_sufficiency": "KrF≈3%、ArF<1%",
+      "investment_thesis": "国产替代最迫切环节，断供窗口期下游以前所未有开放态度加速验证，ArF从0→1到1→N放量"
+    },
+    "电子特气": {
+      "category": "半导体材料",
+      "demand_drivers": [
+        {"driver": "3D NAND层数增加", "mechanism": "堆叠层数突破250层推动WF6单晶圆用量提升30-50%", "quantification": "全球WF6需求8000-9000吨/年"},
+        {"driver": "AI芯片制造", "mechanism": "先进制程对特气种类和纯度要求持续提升", "quantification": "WF6价格2025年内翻倍"}
+      ],
+      "supply_constraints": [
+        {"constraint": "日本永久停产", "mechanism": "关东电化、中央硝子2026年7月永久停产WF6", "quantification": "缺口约25%"},
+        {"constraint": "四巨头垄断", "mechanism": "美国空气化工/林德/液化空气/大阳日酸占全球90%", "quantification": "中国自给率<30%，14nm以下仅15%"}
+      ],
+      "domestic_players": [
+        {"code": "600378", "name": "昊华科技", "role": "WF6+六氟丁二烯", "progress": "WF6 600吨+在建1000吨，六氟丁二烯全球第一57%份额"},
+        {"code": "688146", "name": "中船特气", "role": "WF6", "progress": "WF6约2230吨/年全球前三"},
+        {"code": "002409", "name": "雅克科技", "role": "前驱体+光刻气", "progress": "国际化布局，通过台积电/三星认证"},
+        {"code": "002549", "name": "凯美特气", "role": "稀有气体+激光气", "progress": "国内稀有气体龙头"}
+      ],
+      "self_sufficiency": "<30%（14nm以下15%）",
+      "investment_thesis": "供给冲击+需求爆发+认证缩短三重共振，昊华科技氟源自给全产业链成本优势突出"
+    },
+    "溅射靶材": {
+      "category": "半导体材料",
+      "demand_drivers": [
+        {"driver": "3D NAND层数增加", "mechanism": "128→232层，靶材单晶圆消耗增超40%", "quantification": "HBM铜靶用量为传统芯片3倍+，AI芯片3-5倍"},
+        {"driver": "涨价周期", "mechanism": "2026Q1全球靶材涨价：常规+20%、特殊小金属+70%", "quantification": "2027年全球市场251亿元"}
+      ],
+      "supply_constraints": [
+        {"constraint": "日美垄断", "mechanism": "JX金属铜靶全球40%、霍尼韦尔主导高端", "quantification": "高端国产化率仅10-15%"},
+        {"constraint": "上游材料瓶颈", "mechanism": "5N以上超纯铝/钽依赖进口，钽靶坯进口依存度超70%", "quantification": "认证2-3年12个环节"}
+      ],
+      "domestic_players": [
+        {"code": "300666", "name": "江丰电子", "role": "溅射靶材龙头", "progress": "全球市占率22%全球第二，通过台积电/SK海力士认证，拟募资19.28亿扩产"}
+      ],
+      "self_sufficiency": "10-15%高端",
+      "investment_thesis": "从打破垄断到全球竞争，中日双向管制重塑格局，江丰电子直接受益于海外份额让渡"
+    },
+    "CMP抛光材料": {
+      "category": "半导体材料",
+      "demand_drivers": [
+        {"driver": "制程进步CMP步骤倍增", "mechanism": "250nm→7nm，CMP步骤从几次增至30次；3D NAND近乎翻倍", "quantification": "2025年全球35亿美元→2032年63亿美元(CAGR 8.8%)"},
+        {"driver": "涨价潮", "mechanism": "2026年钨抛光液Q1涨25-35%，抛光垫Q1涨10-15%", "quantification": "AGC断供触发危机→华虹全面转向国产"}
+      ],
+      "supply_constraints": [
+        {"constraint": "杜邦抛光垫垄断", "mechanism": "杜邦一家独大75-79%抛光垫份额", "quantification": "抛光液CR4>80%（Cabot/Fujimi/日立/默克）"},
+        {"constraint": "AGC断供", "mechanism": "2025年7月AGC突然断供抛光液，2026年4月华虹全面转向国产", "quantification": "3nm以下几乎无替代方案"}
+      ],
+      "domestic_players": [
+        {"code": "300054", "name": "鼎龙股份", "role": "CMP抛光垫", "progress": "国内唯一掌握全流程技术，国产替代率近80%，平台化布局抛光垫+液+清洗"},
+        {"code": "688019", "name": "安集科技", "role": "CMP抛光液", "progress": "全球抛光液市占率7-8%，7nm铜阻挡层进入台积电，毛利率58.56%"}
+      ],
+      "self_sufficiency": "抛光垫<10%（鼎龙80%国产替代）、抛光液约7-8%全球",
+      "investment_thesis": "AI/HBM拉动+断供加速替代+涨价周期三重共振，安集确定性最高、鼎龙弹性更大"
+    },
+    "湿电子化学品": {
+      "category": "半导体材料",
+      "demand_drivers": [
+        {"driver": "芯片清洗步骤倍增", "mechanism": "制程演进推动清洗步骤从100步增至200步", "quantification": "2025年中国市场约293亿元"}
+      ],
+      "supply_constraints": [
+        {"constraint": "G5级技术壁垒", "mechanism": "巴斯夫/三菱化学/关东化学垄断G5级以上技术", "quantification": "G5级国产化率仅20-25%"}
+      ],
+      "domestic_players": [
+        {"code": "300655", "name": "晶瑞电材", "role": "G5级硫酸/双氧水/氨水", "progress": "高纯双氧水国内市占率超40%，大基金二期入股"},
+        {"code": "603078", "name": "江化微", "role": "品类最全", "progress": "总产能规划23.5→40.5万吨"},
+        {"code": "300236", "name": "上海新阳", "role": "电镀液+功能性化学品", "progress": "28nm/14nm电镀液国内首家量产替代进口"}
+      ],
+      "self_sufficiency": "整体约40%（G5级仅20-25%）",
+      "investment_thesis": "G5级是决胜关键，2025-2027是抢占12英寸份额窗口期，利润向技术突破企业集中"
+    },
+    "高纯石英": {
+      "category": "半导体材料",
+      "demand_drivers": [
+        {"driver": "AI驱动晶圆厂扩产", "mechanism": "全球半导体石英材料市场约49亿美元，中国需求约42亿元", "quantification": "缺口约35亿元"}
+      ],
+      "supply_constraints": [
+        {"constraint": "矽比科绝对垄断", "mechanism": "美国矽比科(斯普鲁斯派恩矿床)曾供应全球90%+半导体级高纯石英砂", "quantification": "中国进口依赖度约90%，全球仅6家通过TEL/LAM/AMAT认证"}
+      ],
+      "domestic_players": [
+        {"code": "603688", "name": "石英股份", "role": "国产替代唯一标的", "progress": "全球第三家通过TEL认证，2024-2025年自制半导体砂通过全部主流设备商认证"}
+      ],
+      "self_sufficiency": "<15%",
+      "investment_thesis": "政策(新矿种)+认证突破+地缘风险三重叠加，2026年是认证→放量关键转折年"
+    },
+    "钨材料(电子特气上游)": {
+      "category": "AI算力×半导体材料",
+      "demand_drivers": [
+        {"driver": "AI服务器PCB钻针", "mechanism": "GB300→Rubin架构迭代，M9覆铜板(Q布莫氏硬度7)使钻针寿命从3000孔骤降至200孔", "quantification": "单台AI服务器钻针用量从200支暴增至1000+支，需求50倍"},
+        {"driver": "六氟化钨(WF6)半导体制造", "mechanism": "3D NAND层数增加+逻辑芯片金属化→钨沉积需求持续增长", "quantification": "WF6已涨至360万元/吨(半年翻倍)，SK通知涨价70-90%"},
+        {"driver": "光伏钨丝", "mechanism": "金刚线钨丝替代碳钢线趋势", "quantification": "增量需求"}
+      ],
+      "supply_constraints": [
+        {"constraint": "日本高端钨棒料垄断", "mechanism": "住友电工+三菱材料占全球高端钨棒50-60%，中国钨出口管制切断其30%原料（日本91%钨原料依赖中国）", "quantification": "2026年2-4月中国碳化钨/钨粉对日出口连续归零"},
+        {"constraint": "日本停产", "mechanism": "住友电工2026年9月停产PCB高端钨棒，三菱材料含钨超硬材料涨价300%", "quantification": "全球高端钨棒缺口30-40%"},
+        {"constraint": "产能扩张周期长", "mechanism": "高端纳米晶钨棒扩产周期18-24个月", "quantification": "短期缺口刚性"}
+      ],
+      "domestic_players": [
+        {"code": "000657", "name": "中钨高新", "role": "全产业链龙头", "progress": "金洲精工全球第二大PCB微钻厂，M9纳米金刚石涂层微钻通过验证，年内四度扩产，2026Q1净利+256-276%"},
+        {"code": "600549", "name": "厦门钨业", "role": "高端钨材", "progress": "厦门金鹭国内第二大高端棒材，2026Q1净利+189%"},
+        {"code": "688308", "name": "欧科亿", "role": "钻针+棒料", "progress": "控股永鑫精工切入钻针，验证/早期量产阶段"},
+        {"code": "688257", "name": "新锐股份", "role": "金刚石涂层钻针", "progress": "金刚石涂层技术领先，验证进度最快"}
+      ],
+      "self_sufficiency": "高端棒料<5%（日本垄断90%+）",
+      "investment_thesis": "中国出口管制主动制造的国产替代窗口。需求端50倍暴增+供给端日本永久退出=刚性缺口。中钨高新是唯一矿山自给+粉末自产+终端钻针三重闭环标的，2026H2催化最密集。核心逻辑是保供驱动的刚性替代(非可选)，验证通过后不会换回=永久性份额转移",
+      "key_events": ["2026年7月: 日本WF6产线永久停产", "2026年9月: 住友PCB高端钨棒停产", "2026Q3: NVIDIA Rubin量产，M9钻针需求高峰"],
+      "causal_chain": "AI服务器GB300/Rubin出货↑ → M9覆铜板硬度↑ → 钻针磨损4-5倍 → 钻针需求50倍↑ → 日本垄断高端棒料 → 中国出口管制切断日本原料 → 日本7-9月停产 → 下半年供需缺口30-40% → 中钨高新/厦门钨业刚性替代 → 永久份额转移"
+    },
+    "磷化铟(InP)": {
+      "category": "AI算力×光通信材料",
+      "demand_drivers": [
+        {"driver": "AI数据中心光模块升级", "mechanism": "800G→1.6T→3.2T，磷化铟是高速光模块激光器/探测器/AWG核心衬底", "quantification": "2026年全球需求260-300万片/年→未来突破400万片"},
+        {"driver": "铟价暴涨", "mechanism": "中国铟出口限制", "quantification": "铟金属价格年内暴涨90%至4785元/千克"}
+      ],
+      "supply_constraints": [
+        {"constraint": "三大寡头垄断", "mechanism": "住友电工(42%)+AXT/北京通美(36%)+JX金属(13%)合计91%", "quantification": "全球有效产能仅75万片/年，缺口70%+"},
+        {"constraint": "住友因中国铟断供萎缩", "mechanism": "住友90%以上高纯铟从中国进口，产能从18万片降至不足10万片", "quantification": "交付周期18个月，订单排至2028年"}
+      ],
+      "domestic_players": [
+        {"code": "002428", "name": "云南锗业", "role": "6英寸InP衬底", "progress": "国内唯一6英寸InP规模化量产，市占率超80%，在手订单超350亿元"},
+        {"code": "600206", "name": "有研新材", "role": "6英寸InP衬底", "progress": "6英寸小批量供货(国家02专项)，扩至40万片/年"}
+      ],
+      "self_sufficiency": "6英寸国产化率<5%",
+      "investment_thesis": "中国掌握75%铟资源+65%高纯提纯，资源优势升级为战略武器。缺口70%短期无解，中长期逻辑最确定但利润兑现滞后(2027Q2后)",
+      "causal_chain": "AI数据中心光模块800G→3.2T升级 → InP衬底需求爆发 → 中国铟出口限制 → 住友电工产能萎缩60%+ → 缺口70%+ → 云南锗业独家受益"
+    },
+    "薄膜铌酸锂(TFLN)": {
+      "category": "AI算力×光通信材料",
+      "demand_drivers": [
+        {"driver": "1.6T光模块商用元年", "mechanism": "TFLN调制器是单通道200Gbps+刚需，硅光在超高频段无法替代", "quantification": "2026年TFLN调制器需求240万只，全球CAGR 46.9%，渗透率从<5%→30%+"}
+      ],
+      "supply_constraints": [
+        {"constraint": "调制器仅3家量产", "mechanism": "光库科技/富士通/住友电工", "quantification": "缺口30-50%(调制器端)，8英寸晶圆2500-3500美元/片"},
+        {"constraint": "8英寸产线壁垒极高", "mechanism": "投资超30亿元、建设24-36个月，Smart Cut设备被海外垄断", "quantification": "良率爬坡从<30%到70%+耗时十余年"}
+      ],
+      "domestic_players": [
+        {"code": "300620", "name": "光库科技", "role": "TFLN调制器", "progress": "国内唯一量产，市占率超90%全球25-40%，深度绑定英伟达CPO，130GBaud量产良率超90%"},
+        {"code": "600330", "name": "天通股份", "role": "铌酸锂晶体", "progress": "国内唯一8英寸光学级晶体量产，二期420万片2027年投产"}
+      ],
+      "self_sufficiency": "调制器国产已领先、晶圆设备仍受制海外",
+      "investment_thesis": "1.6T光模块元年×TFLN替代硅光确定性×光库科技全球稀缺性。材料端成熟、器件端稀缺、设备端短板",
+      "causal_chain": "1.6T光模块放量 → TFLN调制器替代硅光方案 → 光库科技全球仅3家量产 → 8英寸产能极度紧缺 → 天通晶体+光库器件双国产龙头受益"
+    },
+    "铜箔(HVLP)": {
+      "category": "PCB材料",
+      "demand_drivers": [
+        {"driver": "AI服务器PCB", "mechanism": "单台Rubin机柜对HVLP4铜箔消耗是传统服务器5-10倍", "quantification": "2026年AI服务器高端铜箔需求2.4万吨(+260%)→2027年5万吨→2030年11万吨+"}
+      ],
+      "supply_constraints": [
+        {"constraint": "日企垄断", "mechanism": "HVLP4海外寡头占75-82%，HVLP5日本占90%+；核心设备日本三船年产仅6-8台交期18-24个月", "quantification": "2026Q2起全球HVLP4缺口约1万吨(30-40%)"},
+        {"constraint": "日企不扩产", "mechanism": "三井金属/古河电工/JX金属不主动扩产高端铜箔", "quantification": "缺口2027-28年继续扩大"}
+      ],
+      "domestic_players": [
+        {"code": "301511", "name": "德福科技", "role": "HVLP铜箔", "progress": "国内HVLP4份额31-33%，英伟达独家供应商，量产HVLP3/4/5三代产品"},
+        {"code": "301217", "name": "铜冠铜箔", "role": "HVLP铜箔", "progress": "份额28-30%，全谱系量产"},
+        {"code": "301389", "name": "隆扬电子", "role": "HVLP5", "progress": "国内唯一量产HVLP5"}
+      ],
+      "self_sufficiency": "18-25%",
+      "investment_thesis": "四重壁垒(设备日企垄断+工艺know-how+客户长验证+日韩抱团)叠加供需缺口，HVLP铜箔是铜箔行业最具价值弹性赛道",
+      "causal_chain": "AI服务器PCB层数40层+ → HVLP铜箔需求暴增 → 日本三井/古河垄断不扩产 → 核心设备年产仅6-8台 → 缺口40-50% → 德福科技/铜冠铜箔国产替代"
+    },
+    "覆铜板/CCL": {
+      "category": "PCB材料",
+      "demand_drivers": [
+        {"driver": "AI服务器M9级CCL", "mechanism": "英伟达Rubin架构确定采用M9级CCL(Df<=0.0005)，适配224Gbps/100GHz+", "quantification": "2026年AI服务器CCL市场增速超110%"},
+        {"driver": "材料全面升级", "mechanism": "玻纤布升级为石英布(Q布)、铜箔升级HVLP4、树脂升级碳氢树脂/EX树脂", "quantification": "M9 CCL四大材料同步升级，单价跃升"}
+      ],
+      "supply_constraints": [
+        {"constraint": "日系垄断M9", "mechanism": "松下/日立化成/三菱瓦斯垄断M9级CCL", "quantification": "高端CCL交期6个月+，日系涨价15-25%"},
+        {"constraint": "Q布产能有限", "mechanism": "石英布全球仅菲利华(5万米/月)、宏和科技、中材科技三家", "quantification": "Q布莫氏硬度7→钻针寿命骤降90%+"}
+      ],
+      "domestic_players": [
+        {"code": "600183", "name": "生益科技", "role": "M9 CCL", "progress": "大陆唯一通过英伟达M9认证，独家供应Rubin 78层正交背板基材，良率90%"},
+        {"code": "688519", "name": "南亚新材", "role": "M9 CCL", "progress": "M9材料正在客户测试中"},
+        {"code": "603186", "name": "华正新材", "role": "极低损CCL", "progress": "已量产接近M9标准产品，与华为海思合作，成本低30%"}
+      ],
+      "self_sufficiency": "M9级国产仅生益科技一家",
+      "investment_thesis": "M9覆铜板→Q布莫氏硬度7→钻针寿命从3000孔降至200孔(降90%+)→钻针需求暴增10倍。M9是对钻针的耗材放大器逻辑",
+      "causal_chain": "AI算力→信号频率100GHz+ → M9覆铜板用Q布(硬度↑300%) → 钻针寿命降90%+ → 单台AI服务器钻针从200→1000+支 → 钻针需求暴增 → 中钨高新/鼎泰高科受益"
+    },
+    "高频高速材料": {
+      "category": "PCB材料",
+      "demand_drivers": [
+        {"driver": "5G/6G+AI服务器", "mechanism": "毫米波天线+AI高速背板拉动高频材料", "quantification": "全球5G通信材料2030年达580亿美元(CAGR 12.5%)"}
+      ],
+      "supply_constraints": [
+        {"constraint": "PTFE/LCP日美垄断", "mechanism": "大金/科慕垄断PTFE树脂，可乐丽/村田垄断LCP膜", "quantification": "高端LCP膜约70%由日企控制"}
+      ],
+      "domestic_players": [
+        {"code": "300936", "name": "中英科技", "role": "PTFE覆铜板", "progress": "国内纯PTFE最大供应商，Df=0.0004-0.001对标Rogers"},
+        {"code": "002324", "name": "普利特", "role": "LCP薄膜", "progress": "国内首家LCP薄膜量产，300万平米/年"},
+        {"code": "002886", "name": "沃特股份", "role": "LCP树脂", "progress": "LCP总产能2.5万吨/年全球最大"}
+      ],
+      "self_sufficiency": "PTFE覆铜板约58%、LCP膜约35%（高端仍依赖日本）",
+      "investment_thesis": "PTFE从M9配角→M10主角升级，具备树脂合成+覆铜板一体化的企业获得超额利润"
+    },
+    "PCB油墨": {
+      "category": "PCB材料",
+      "demand_drivers": [
+        {"driver": "AI PCB制造升级", "mechanism": "AI服务器PCB带动高端阻焊油墨需求升级", "quantification": "高端特种油墨从2-3万元/吨→8万元+/吨"}
+      ],
+      "supply_constraints": [
+        {"constraint": "日本太阳油墨垄断", "mechanism": "太阳油墨62%+田村化学18%+日立化学，三家控制高端80%+", "quantification": "2025Q4起日系涨价15-25%交期8-12周"}
+      ],
+      "domestic_players": [
+        {"code": "300576", "name": "容大感光", "role": "PCB油墨+光刻胶", "progress": "湿膜市占率约50%，阻焊油墨约25%，珠海二期新增6000吨AI专用高端油墨"},
+        {"code": "300537", "name": "广信材料", "role": "阻焊油墨", "progress": "阻焊油墨市占率约20%，已突破AI服务器专用替代日系"}
+      ],
+      "self_sufficiency": "高端约20%",
+      "investment_thesis": "四重共振：AI驱动需求升级+日系涨价断供+国产替代加速+产品结构高端化"
+    },
+    "PCB制造": {
+      "category": "PCB",
+      "demand_drivers": [
+        {"driver": "AI服务器PCB价值暴增", "mechanism": "GB300单机柜PCB价值3.5万美元→Rubin 11.7万美元(+233%)", "quantification": "单板钻孔从2000→20万+孔(5-10倍)，层数40层+，厚度>3mm"},
+        {"driver": "PCB钻针耗材弹性", "mechanism": "M9材料使单针寿命从3000孔→200孔+不可重磨", "quantification": "全球钻针需求突破50亿支，缺口约40%"}
+      ],
+      "supply_constraints": [
+        {"constraint": "高端PCB交期长", "mechanism": "高阶BT/ABF载板缺口超40%", "quantification": "交期6个月+"},
+        {"constraint": "英伟达验证壁垒", "mechanism": "AI服务器PCB需通过英伟达严格认证", "quantification": "仅少数企业通过"}
+      ],
+      "domestic_players": [
+        {"code": "300476", "name": "胜宏科技", "role": "AI服务器PCB", "progress": "GB300 OAM模块全球独家供应商，AI服务器PCB全球市占率超50%"},
+        {"code": "002463", "name": "沪电股份", "role": "高端背板", "progress": "全球首家通过78层M9正交背板认证，Rubin全系列核心供应"},
+        {"code": "002916", "name": "深南电路", "role": "封装基板+高端PCB", "progress": "国内唯一量产FC-BGA封装基板，100层+板全球份额超30%"},
+        {"code": "002938", "name": "鹏鼎控股", "role": "全球PCB第一", "progress": "全球PCB营收第一，Rubin机架核心一供"},
+        {"code": "301377", "name": "鼎泰高科", "role": "PCB钻针", "progress": "全球市占率28%"}
+      ],
+      "self_sufficiency": "高端PCB制造大陆已领先，钻针全球份额28%+",
+      "investment_thesis": "AI带来量价乘以10倍的非线性升级。钻针是产业链中最被低估的耗材杠杆——PCB产值增长50%对应钻针需求暴增150%"
+    },
+    "封装基板/ABF载板": {
+      "category": "封装材料",
+      "demand_drivers": [
+        {"driver": "AI芯片CoWoS封装", "mechanism": "单芯片ABF载板面积较传统GPU增2-3倍，chiplet使载板从1颗→4-8颗", "quantification": "全球市场约1100亿元，需求CAGR约22%"}
+      ],
+      "supply_constraints": [
+        {"constraint": "ABF膜仅味之素一家", "mechanism": "味之素垄断全球>95%ABF膜，涨价30%", "quantification": "缺口从2025年1%→2027-28年42-46%，第三工厂2032年才投产"},
+        {"constraint": "需求远快于供给", "mechanism": "供给CAGR仅12% vs 需求22%", "quantification": "结构性缺口持续扩大"}
+      ],
+      "domestic_players": [
+        {"code": "002916", "name": "深南电路", "role": "FC-BGA载板", "progress": "广州基地一期5万平米/月爬坡，20层FC-BGA量产"},
+        {"code": "002436", "name": "兴森科技", "role": "FC-BGA载板", "progress": "广州+珠海3万平米/月满产年36万平米"},
+        {"code": "603186", "name": "华正新材", "role": "CBF膜(ABF替代)", "progress": "CBF膜已在载板厂验证"}
+      ],
+      "self_sufficiency": "ABF膜国产化率≈0%",
+      "investment_thesis": "味之素垄断+2032年前无新产能=ABF膜长期供需硬缺口，关注华正新材CBF膜替代进度"
+    },
+    "环氧塑封料/EMC": {
+      "category": "封装材料",
+      "demand_drivers": [
+        {"driver": "先进封装+HBM", "mechanism": "HBM采用MR-MUF大量使用液态EMC，先进封装使EMC单价5-10倍", "quantification": "行业五年CAGR 8-10%"}
+      ],
+      "supply_constraints": [
+        {"constraint": "日本主导", "mechanism": "住友电木28%+力森诺科16%，高性能EMC国产化率仅10-20%", "quantification": "先进封装领域国产化率更低"}
+      ],
+      "domestic_players": [
+        {"code": "688535", "name": "华海诚科", "role": "EMC龙头", "progress": "收购衡所华威后全球出货量第二，GMC量产供应NAND Flash客户"},
+        {"code": "688035", "name": "德邦科技", "role": "先进封装材料", "progress": "竞购衡所华威失利，转收购泰吉诺布局"}
+      ],
+      "self_sufficiency": "10-20%（先进封装领域更低）",
+      "investment_thesis": "华海诚科坐二望一，HBM驱动材料升级量价齐升，关注进入海外HBM供应链进展"
+    },
+    "底部填充胶/Underfill": {
+      "category": "封装材料",
+      "demand_drivers": [
+        {"driver": "芯片倒装+先进封装", "mechanism": "Flip Chip/2.5D/3D封装必用Underfill", "quantification": "全球封装材料市场约270亿美元"}
+      ],
+      "supply_constraints": [
+        {"constraint": "纳美仕/汉高/日东电工垄断", "mechanism": "三家合计>70%", "quantification": "芯片级国产化率从<5%提升至约15%"}
+      ],
+      "domestic_players": [
+        {"code": "688035", "name": "德邦科技", "role": "Underfill+AD胶+DAF膜", "progress": "芯片级Underfill已小批量交付，进入华为海思/长电科技，DAF膜国内唯一量产30%份额"}
+      ],
+      "self_sufficiency": "约15%",
+      "investment_thesis": "德邦科技多品类平台化布局清晰，2025Q3营收+39%验证放量逻辑"
+    },
+    "键合丝": {
+      "category": "封装材料",
+      "demand_drivers": [
+        {"driver": "铜丝替代金丝趋势", "mechanism": "铜丝成本仅金丝30%、导电性保持90%+", "quantification": "全球市场2031年达5.08亿美元(CAGR 4.5%)"}
+      ],
+      "supply_constraints": [
+        {"constraint": "贺利氏/田中贵金属主导高端", "mechanism": "Top3占54.65%", "quantification": "高端(超细金丝/铜合金丝)国产化率仅10%"}
+      ],
+      "domestic_players": [
+        {"code": "002119", "name": "康强电子", "role": "引线框架+键合丝", "progress": "键合丝国内市占32%，年产能3.6亿米，进入英飞凌供应链"}
+      ],
+      "self_sustainability": "中低端75%、高端10%",
+      "investment_thesis": "康强电子从国产替代中低端向攻克高端切换，决定估值弹性"
+    },
+    "先进封装（制造端）": {
+      "category": "封装制造",
+      "demand_drivers": [
+        {"driver": "英伟达GPU垄断CoWoS产能", "mechanism": "英伟达占台积电CoWoS产能60%+，2025年6.5-7.5万片→2026年9-11万片", "quantification": "2026年缺口约20%、2027年>30%"},
+        {"driver": "产能线性vs需求指数", "mechanism": "新建CoWoS产线需1.5-2年", "quantification": "订单能见度延伸至2029年"}
+      ],
+      "supply_constraints": [
+        {"constraint": "台积电绝对主导", "mechanism": "国内三家合计月产能2.0-2.6万片不到台积电1/4", "quantification": "设备+良率+材料三重约束"}
+      ],
+      "domestic_players": [
+        {"code": "002156", "name": "通富微电", "role": "CoWoS封装", "progress": "月产能0.8-1.0万片良率80-85%，绑定AMD，国内第一"},
+        {"code": "600584", "name": "长电科技", "role": "XDFOI平台", "progress": "月产能0.5-0.8万片良率75-80%，全球封测第三"}
+      ],
+      "self_sufficiency": "国内产能不足台积电1/4",
+      "investment_thesis": "台积电外溢+国产AI芯片本土封装双轮驱动，通富微电在CoWoS和AMD绑定上领先"
+    },
+    "HBM": {
+      "category": "先进封装×存储",
+      "demand_drivers": [
+        {"driver": "AI GPU标配HBM", "mechanism": "HBM4 2048条I/O（HBM3E 2倍），单价高50%+，配套Rubin 2026H2", "quantification": "2025年全球250亿美元，CAGR>50%"}
+      ],
+      "supply_constraints": [
+        {"constraint": "三巨头绝对垄断", "mechanism": "SK海力士>50%+三星+美光垄断制造全链条", "quantification": "中国HBM制造完全空白，库存2025年底耗尽"}
+      ],
+      "domestic_players": [
+        {"code": "002156", "name": "通富微电", "role": "HBM封装", "progress": "HBM封装已进入量产(与AMD绑定)"},
+        {"code": "600584", "name": "长电科技", "role": "HBM封装", "progress": "合肥基地HBM专线月产能10万片"}
+      ],
+      "self_sufficiency": "制造=0%，封装正在突破",
+      "investment_thesis": "长鑫(DRAM)+通富/长电(封装)+华为(应用)铁三角是国产化关键路径。HBM对EMC/硅微粉(联瑞新材)的拉动是间接受益暗线"
+    },
+    "散热材料": {
+      "category": "热管理",
+      "demand_drivers": [
+        {"driver": "英伟达Rubin转向石墨烯TIM", "mechanism": "2026年5月确认取消液态金属方案，标准版替换为高导热石墨烯TIM", "quantification": "石墨烯导热膜首次成为英伟达GPU芯片级TIM材料"},
+        {"driver": "AI服务器散热需求暴增", "mechanism": "单GPU功耗从H100 700W→Rubin 2300W", "quantification": "TIM导热率需求从5-10W/mK→70-950W/mK"}
+      ],
+      "supply_constraints": [
+        {"constraint": "高端TIM国产化率<15%", "mechanism": "信越/汉高/陶氏/杜邦四大巨头占高端75%", "quantification": "高端球形氧化铝/氮化硼填料依赖进口"},
+        {"constraint": "英伟达认证壁垒", "mechanism": "TIM认证周期18-24个月", "quantification": "仅中石科技通过Rubin认证"}
+      ],
+      "domestic_players": [
+        {"code": "300684", "name": "中石科技", "role": "石墨烯TIM+TIM", "progress": "唯一通过英伟达Rubin TIM1.5/TIM2认证并批量供货，面内导热1500-1800W/mK"},
+        {"code": "300602", "name": "飞荣达", "role": "电磁屏蔽+散热", "progress": "石墨TIM送样测试中"},
+        {"code": "300179", "name": "四方达", "role": "金刚石散热", "progress": "散热片通过海外客户测试"},
+        {"code": "688028", "name": "沃尔德", "role": "金刚石散热", "progress": "12英寸钻石散热晶圆小规模推广"}
+      ],
+      "self_sufficiency": "高端石墨烯TIM约5%、金刚石散热<1%",
+      "investment_thesis": "中石科技在石墨烯TIM和传统TIM双赛道均进入英伟达，交叉验证最强；金刚石散热是远期终极方向"
+    },
+    "液冷系统": {
+      "category": "热管理",
+      "demand_drivers": [
+        {"driver": "AI服务器功耗暴增", "mechanism": "GB200单柜120kW→GB300(NVL144)超250kW→2027年Rubin 600kW", "quantification": "风冷40kW以上失效，液冷渗透率从15%→2026年74%，GB300达100%"},
+        {"driver": "市场爆发", "mechanism": "仅英伟达NVL72液冷需求就达697亿元", "quantification": "2026年全球液冷约120亿美元(+66%)，整体空间约800亿元"}
+      ],
+      "supply_constraints": [
+        {"constraint": "CDU壁垒最高", "mechanism": "磁悬浮泵、钎焊换热器自主化率仅35%→60%", "quantification": "冷却液受制于半导体级纯度+PFAS环保法规"},
+        {"constraint": "产能规划过剩风险", "mechanism": "2026年行业规划产能可能超实际需求50%+", "quantification": "价格战风险"}
+      ],
+      "domestic_players": [
+        {"code": "002837", "name": "英维克", "role": "液冷全栈龙头", "progress": "A股唯一英伟达NPN Tier 1认证，冷板市占率42%+，在手订单45亿+"},
+        {"code": "872808", "name": "曙光数创", "role": "浸没式液冷", "progress": "浸没式全球龙头市占率超60%，PUE低至1.03"},
+        {"code": "300499", "name": "高澜股份", "role": "液冷三路线", "progress": "唯一同时掌握冷板/浸没/集装箱，GB300核心供应商，净利+294%"}
+      ],
+      "self_sufficiency": "国产主导(冷板>90%、CDU约60%)",
+      "investment_thesis": "2025-2026是液冷业绩爆发期，英维克是确定性龙头(英伟达认证)，高澜股份弹性最大(增速294%)"
+    },
+    "IGBT/SiC/GaN": {
+      "category": "功率半导体",
+      "demand_drivers": [
+        {"driver": "新能源车SiC渗透", "mechanism": "800V车型SiC渗透率68%", "quantification": "全球SiC功率器件2030年超200亿美元"},
+        {"driver": "AI服务器电源", "mechanism": "GB300单柜140kW→电源从IGBT向SiC/GaN切换，英伟达发布800V HVDC白皮书", "quantification": "数据中心GaN增速53%"},
+        {"driver": "英飞凌禁售", "mechanism": "2026年6月英飞凌8英寸SiC在中国被禁售", "quantification": "释放约28-30亿元/年本土替代空间"}
+      ],
+      "supply_constraints": [
+        {"constraint": "8英寸SiC产能紧张", "mechanism": "全球仅天岳/天科/Wolfspeed三家能量产8英寸", "quantification": "Wolfspeed破产保护"}
+      ],
+      "domestic_players": [
+        {"code": "603290", "name": "斯达半导", "role": "IGBT模块龙头", "progress": "车规批量供应"},
+        {"code": "688187", "name": "时代电气", "role": "IGBT+SiC", "progress": "全布局"},
+        {"code": "688234", "name": "天岳先进", "role": "SiC衬底", "progress": "导电型全球份额27.6%，8英寸全球51.3%，良率75%+"},
+        {"code": "600703", "name": "三安光电", "role": "GaN/SiC IDM", "progress": "GaN国内份额24.3%，间接切入英伟达产业链"}
+      ],
+      "self_sufficiency": "SiC衬底约45%、GaN约24%",
+      "investment_thesis": "天岳先进以51%全球8英寸份额锁定长期定价权，三安光电受益英飞凌禁售+GaN服务器双催化"
+    },
+    "MLCC": {
+      "category": "被动元件",
+      "demand_drivers": [
+        {"driver": "AI服务器用量暴增", "mechanism": "单台GB300 MLCC约3万颗(传统13倍、手机30倍)，单AI机柜44万颗", "quantification": "2026年AI服务器MLCC需求726亿颗(+87%)，2030年超4000亿颗"},
+        {"driver": "涨价超级周期", "mechanism": "村田2026年3-4月对AI服务器/车规涨价15-35%，三星跟进", "quantification": "行业CAGR约30%"}
+      ],
+      "supply_constraints": [
+        {"constraint": "日韩垄断高端", "mechanism": "村田/太阳诱电/TDK/三星电机占80%+高端份额", "quantification": "日韩稼动率>90%，中低端供给真空"},
+        {"constraint": "高端粉体依赖进口", "mechanism": "100nm以下高结晶度钛酸钡国产替代率不足20%", "quantification": "叠层机/流延机仍被日本垄断"}
+      ],
+      "domestic_players": [
+        {"code": "300408", "name": "三环集团", "role": "MLCC+粉体", "progress": "粉体100%自给，毛利率42%，通过丰田/本田认证"},
+        {"code": "000636", "name": "风华高科", "role": "MLCC产能最大", "progress": "月产635亿只+，切入比亚迪/理想/蔚来，2026Q1净利润+37%"}
+      ],
+      "self_sufficiency": "高端MLCC约20%",
+      "investment_thesis": "AI+汽车双轮驱动的涨价超级周期，三环集团壁垒最深(粉体自给+日系认证)，风华高科弹性最大"
+    },
+    "电感/磁材": {
+      "category": "被动元件",
+      "demand_drivers": [
+        {"driver": "AI服务器电感翻倍", "mechanism": "传统服务器单板40-50颗→AI服务器50-100颗(个别200颗+)", "quantification": "TLVR电感单价显著高于传统AI电感，量价齐升"},
+        {"driver": "TLVR架构升级", "mechanism": "TLVR成为GPU大电流供电标配", "quantification": "新能源车单车80-100颗+"}
+      ],
+      "supply_constraints": [
+        {"constraint": "TDK/太阳诱电主导高端", "mechanism": "日本长期积累一体成型电感技术", "quantification": "国内顺络电子AI订单饱满"}
+      ],
+      "domestic_players": [
+        {"code": "002138", "name": "顺络电子", "role": "一体成型电感龙头", "progress": "覆盖国内头部服务器+海外头部功率模块，提前布局TLVR，海外AI业务爆发式增长"}
+      ],
+      "self_sufficiency": "一体成型电感国产约30%",
+      "investment_thesis": "电感处量价齐升黄金窗口，顺络电子卡位最完整，海外AI业务高增验证产品竞争力"
+    },
+    "晶振/谐振器": {
+      "category": "被动元件",
+      "demand_drivers": [
+        {"driver": "AI服务器高频时钟需求", "mechanism": "单台AI服务器需多颗不同频率晶振，要求基频100MHz+、相位噪声-130dBc/Hz", "quantification": "全球市场2025年突破95亿美元"}
+      ],
+      "supply_constraints": [
+        {"constraint": "NDK/京瓷/Epson主导", "mechanism": "高端OCXO需7个9纯度石英晶片(国内最高6个9)", "quantification": "光刻设备国内5μm vs 日系1μm"}
+      ],
+      "domestic_players": [
+        {"code": "603738", "name": "泰晶科技", "role": "MEMS光刻晶振", "progress": "国内唯一掌握MEMS光刻工艺，312.5MHz差分TCXO已出货AI数据中心"}
+      ],
+      "self_sufficiency": "全球份额约40%(中低端为主)",
+      "investment_thesis": "小而美赛道，泰晶科技是国内唯一具备AI服务器高频差分晶振量产能力的企业"
+    },
+    "高速连接器": {
+      "category": "连接器",
+      "demand_drivers": [
+        {"driver": "英伟达铜缆互联方案", "mechanism": "GB200 NVL72用近5000根NVLink铜缆，GB300线缆长度增50%", "quantification": "立讯GB300若通过认证单机柜价值量或达50万元"},
+        {"driver": "铜连接长期确定性", "mechanism": "机柜内铜连接+机柜间光连接混合架构维持3-5年以上", "quantification": "224G产品批量、448G预研"}
+      ],
+      "supply_constraints": [
+        {"constraint": "安费诺垄断AI机柜", "mechanism": "安费诺全球40%+Molex+泰科占60-80%", "quantification": "立讯2022年解决专利纠纷打开美国市场"}
+      ],
+      "domestic_players": [
+        {"code": "002475", "name": "立讯精密", "role": "铜连接+CPC方案", "progress": "224G量产，CPC铜缆直连芯片方案进入GB300认证，通讯业务2025H1+50%"},
+        {"code": "002179", "name": "中航光电", "role": "军工连接器", "progress": "向AI通讯延伸"},
+        {"code": "002897", "name": "意华股份", "role": "高速I/O连接器", "progress": "国产替代"}
+      ],
+      "self_sufficiency": "AI机柜铜连接约15%",
+      "investment_thesis": "铜连接是英伟达机柜内互联确定性方案，立讯精密兼具技术+客户+产能三重优势"
+    },
+    "半导体设备": {
+      "category": "设备",
+      "demand_drivers": [
+        {"driver": "中国晶圆厂扩产", "mechanism": "中芯/长存/长鑫/华虹同步扩产+美国BIS第四轮出口管制倒逼国产验证", "quantification": "2025年WFE国产化率从16%跳升至21%(Bernstein)~35%(CSIA)"},
+        {"driver": "国产设备订单锁定至2027", "mechanism": "政府要求新建产能采购>=50%国产设备+5000亿补贴酝酿中", "quantification": "国产设备商收入逆势+37-67%"}
+      ],
+      "supply_constraints": [
+        {"constraint": "AMAT/Lam/TEL/KLA/ASML垄断", "mechanism": "五巨头占全球WFE 90%+", "quantification": "光刻和量检测国产化率仍<10%"}
+      ],
+      "domestic_players": [
+        {"code": "002371", "name": "北方华创", "role": "ICP刻蚀+PVD+CVD", "progress": "国产设备平台龙头"},
+        {"code": "688012", "name": "中微公司", "role": "CCP刻蚀+薄膜", "progress": "CCP刻蚀国际先进5nm验证，LPCVD/ALD开始确认收入"},
+        {"code": "688072", "name": "拓荆科技", "role": "PECVD/SACVD", "progress": "长江存储装机200台，份额从15%升至30%"},
+        {"code": "688082", "name": "盛美上海", "role": "兆声波清洗", "progress": "国内领先"},
+        {"code": "688361", "name": "中科飞测", "role": "量检测", "progress": "覆盖70%检测品类，累计出货1000+台"},
+        {"code": "300567", "name": "精测电子", "role": "量检测", "progress": "7nm明场缺陷检测交付验收，2024年半导体订单16.68亿+90%"},
+        {"code": "688120", "name": "华海清科", "role": "CMP设备", "progress": "国内唯一12英寸CMP量产"},
+        {"code": "688037", "name": "芯源微", "role": "涂胶显影", "progress": "前道涂胶显影国内唯一量产"}
+      ],
+      "self_sufficiency": "21%(Bernstein)~35%(CSIA)",
+      "investment_thesis": "从去美化走向全链路自主，刻蚀+薄膜沉积价值量最大(占WFE40%+)且已突破临界点，量检测弹性最大"
+    },
+    "半导体零部件": {
+      "category": "设备零部件",
+      "demand_drivers": [
+        {"driver": "设备国产化拉动零部件", "mechanism": "零部件通用性强(一对多)，受益于所有国产设备商崛起", "quantification": "全球约540亿美元，中国约187亿美元，整体国产化率<20%"}
+      ],
+      "supply_constraints": [
+        {"constraint": "真空阀门/密封件/射频电源被垄断", "mechanism": "瑞士VAT 70%+真空阀、Edwards+Ebara真空泵、MKS/AE射频电源", "quantification": "高端产品不足1%，验证周期3-5年"}
+      ],
+      "domestic_players": [
+        {"code": "300260", "name": "新莱应材", "role": "真空阀门/管件", "progress": "国内首家全制程本土化，半导体级球阀打破VAT垄断替代率15%，通过AMAT/Lam认证"},
+        {"code": "688409", "name": "富创精密", "role": "模组/结构件", "progress": "7nm工艺零部件批量供应，2026Q1净利+361%扭亏，拟收购上海日扬65%切入真空阀门"},
+        {"code": "688200", "name": "正帆科技", "role": "Gas Box气柜", "progress": "国内领先"}
+      ],
+      "self_sufficiency": "<20%（高端<1%）",
+      "investment_thesis": "零部件是设备国产化的卖铲人，壁垒最高的真空阀门是关键突破口，新莱应材和富创精密是双主线"
+    },
+    "光刻机零部件/光刻系统": {
+      "category": "设备",
+      "demand_drivers": [
+        {"driver": "国产光刻机攻关", "mechanism": "美国EUV禁运+荷兰DUV收紧倒逼自研，2025年定义为国产光刻机爆发元年", "quantification": "官方背景已下单421笔国产光刻设备及零部件"}
+      ],
+      "supply_constraints": [
+        {"constraint": "ASML绝对垄断", "mechanism": "EUV 100%+高端DUV>90%，蔡司独家镜头供应", "quantification": "国产光刻机国产化率约2.5%"}
+      ],
+      "domestic_players": [
+        {"code": "688502", "name": "茂莱光学", "role": "光刻机镜头", "progress": "大口径镜头通过中芯国际28nm验证，供货SMEE DUV单机价值量约5000万元"},
+        {"code": "301421", "name": "波长光电", "role": "DUV照明系统", "progress": "唯一同时打入宇量升/新凯来/SMEE三大光刻机体系"},
+        {"code": "002222", "name": "福晶科技", "role": "非线性光学晶体", "progress": "全球领先，光刻机光源上游"}
+      ],
+      "self_sufficiency": "约2.5%",
+      "investment_thesis": "光刻机正经历0→1质变(90nm量产+28nm验证)，优先关注光学/光源/工件台零部件而非整机概念"
+    },
+    "光掩模/掩膜版": {
+      "category": "设备",
+      "demand_drivers": [
+        {"driver": "晶圆厂扩产+新设计", "mechanism": "先进制程掩膜层数28nm约40层→7nm约80层→3nm超100层", "quantification": "2025年国内半导体掩膜版市场约187亿元"}
+      ],
+      "supply_constraints": [
+        {"constraint": "DNP/Toppan垄断高端", "mechanism": "两家合计约70%全球份额，28nm以上被晶圆厂Inhouse垄断", "quantification": "国产以180nm+成熟制程为主"}
+      ],
+      "domestic_players": [
+        {"code": "688315", "name": "清溢光电", "role": "掩膜版", "progress": "150nm量产，推进130nm-65nm PSM/OPC，规划28nm"},
+        {"code": "688401", "name": "路维光电", "role": "掩膜版", "progress": "180nm+量产，子公司路芯半导体130nm-28nm产线2025年量产"}
+      ],
+      "self_sufficiency": "低端为主，130nm以下国产化极低",
+      "investment_thesis": "掩膜版有逆周期属性(挂钩新产品开发)，成熟制程受益新能源车+物联网长期增量"
+    },
+    "EDA/IP": {
+      "category": "工业软件",
+      "demand_drivers": [
+        {"driver": "美国GAA EDA全面禁运", "mechanism": "2024年12月BIS对GAAFET EDA对华全面禁运，倒逼国产替代", "quantification": "国产PDK联盟将适配周期从18月缩短至6月"}
+      ],
+      "supply_constraints": [
+        {"constraint": "Synopsys/Cadence/Siemens垄断", "mechanism": "三巨头占全球80%+，数十年累积全流程平台", "quantification": "数字全流程仍是最大短板"}
+      ],
+      "domestic_players": [
+        {"code": "301269", "name": "华大九天", "role": "EDA全流程", "progress": "国内唯一模拟/存储/射频/平板全流程覆盖，14nm可覆盖70-80%需求"},
+        {"code": "688206", "name": "概伦电子", "role": "SPICE/存储EDA", "progress": "国际竞争力较强的设计类工具"},
+        {"code": "301095", "name": "广立微", "role": "良率分析", "progress": "绑定国内头部晶圆厂"}
+      ],
+      "self_sufficiency": "约15-20%",
+      "investment_thesis": "EDA投入产出比最高，一旦形成用户生态替换成本极大。存储全流程量产验证是华大九天最大证明"
+    },
+    "光学镜头": {
+      "category": "光学",
+      "demand_drivers": [
+        {"driver": "半导体检测+光刻机双拉动", "mechanism": "检测设备国产化拉动工业镜头，光刻机国产化是最高壁垒场景", "quantification": "单台DUV光刻机光学器件价值量极高"}
+      ],
+      "supply_constraints": [
+        {"constraint": "蔡司垄断光刻镜头", "mechanism": "蔡司是ASML光刻机镜头全球唯一供应商，亚纳米级面形精度", "quantification": "中国主要配套检测和照明/对准子系统，核心投影物镜被蔡司垄断"}
+      ],
+      "domestic_players": [
+        {"code": "688502", "name": "茂莱光学", "role": "光刻机镜头+检测光学", "progress": "国内进度最快，已供货SMEE DUV，2025H1半导体收入占比49%，净利+288%"},
+        {"code": "301421", "name": "波长光电", "role": "DUV照明系统", "progress": "唯一同时打入三大光刻机体系，2024年半导体收入5100万+82%"},
+        {"code": "603297", "name": "永新光学", "role": "光刻机对准检测", "progress": "对准检测模块光学部件独家国产化"}
+      ],
+      "self_sufficiency": "光刻镜头约2%、检测镜头约30%",
+      "investment_thesis": "茂莱光学进入业绩兑现期，波长光电弹性最大(低基数+三大客户全覆盖)"
+    },
+    "IGBT/SiC": {
+      "category": "功率半导体",
+      "inherit_from": "IGBT/SiC/GaN",
+      "note": "与IGBT/SiC/GaN合并处理，详见上方IGBT/SiC/GaN条目"
+    }
+  }
+}

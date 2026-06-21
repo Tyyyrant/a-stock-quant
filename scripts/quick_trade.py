@@ -40,8 +40,8 @@ from limit_up_analyzer import analyze_limit_up, analyze_sector_limit_ups
 # 配置
 # ============================================================
 
-TOP_SECTORS = 3
-TOP_PER_SECTOR = 5
+TOP_PER_SECTOR = 5  # 每个风口选几只领头羊
+MIN_FENGKOU_STOCKS = 2  # 风口至少有多少只强势股才算
 MIN_SECTOR_STOCKS = 5
 MAX_SECTORS_CONSIDER = 10
 
@@ -75,6 +75,94 @@ SECTOR_BOARD_MAP = {
     "AI PC": "pt01801101", "MLCC": "pt01801083", "玻璃基板": "pt01801083",
     "无线充电": "pt02003960",
 }
+
+
+def compute_ths_resonance(target_date, kline_map=None, min_stocks=2):
+    """
+    用同花顺 getharden API 发现当日最强风口。
+    同花顺编辑部人工运营的题材标签，零鉴权73ms。
+
+    返回: [{"concept": "算力租赁", "count": 3, "stocks": [...], "avg_chg": ...}, ...]
+    """
+    import requests
+    from collections import Counter
+
+    # 子概念合并规则 (将细分标签归一化到大主题)
+    MERGE_RULES = {
+        "算力租赁": "算力", "数据中心": "算力", "液冷散热": "算力",
+        "AI服务器": "算力", "碳化硅": "算力", "AI芯片": "算力",
+        "机器人": "机器人", "人形机器人": "机器人",
+        "PCB": "PCB", "PCB概念": "PCB",
+        "CPO": "CPO", "光通信": "CPO",
+        "固态电池": "固态电池", "锂电池": "固态电池",
+        "半导体设备": "半导体设备",
+        "小金属": "小金属", "稀土": "小金属", "钨": "小金属",
+        "创新药": "创新药",
+        "可控核聚变": "可控核聚变",
+        "商业航天": "商业航天",
+    }
+
+    # 过滤掉非交易型标签
+    SKIP_TAGS = {
+        "一季报增长", "业绩增长", "定增", "定增通过", "股权激励",
+        "扭亏为盈", "摘帽", "摘帽预期", "庭外重组", "债务豁免",
+        "央企", "无锡国资", "炭黑龙头", "氮化铝",
+    }
+
+    print(f"  [同花顺] 获取当日强势股归因...")
+    url = (f"http://zx.10jqka.com.cn/event/api/getharden/"
+           f"date/{target_date}/orderby/date/orderway/desc/charset/GBK/")
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/117.0.0.0 Safari/537.36"}
+    r = requests.get(url, headers=headers, timeout=10)
+    data = r.json()
+    if data.get("errocode", 0) != 0:
+        print(f"  同花顺API错误: {data.get('errormsg', '')}")
+        return []
+
+    rows = data.get("data") or []
+    print(f"  强势股: {len(rows)} 只")
+
+    # 聚合 reason tags → 合并后的概念
+    raw_tags = Counter()
+    tag_stocks = {}  # tag -> [{code, name, chg}]
+    for row in rows:
+        reason = row.get("reason", "")
+        code = row.get("code", "")
+        name = row.get("name", "")
+        zf = float(row.get("zhangfu", 0))
+        tags = [t.strip() for t in reason.split("+") if t.strip()]
+
+        for tag in tags:
+            if tag in SKIP_TAGS:
+                continue
+            # 合并到父概念
+            parent = MERGE_RULES.get(tag, tag)
+            raw_tags[parent] += 1
+            if parent not in tag_stocks:
+                tag_stocks[parent] = []
+            if len(tag_stocks[parent]) < 20:
+                tag_stocks[parent].append({"code": code, "name": name, "chg": zf})
+
+    # 按强势股数排名，过滤掉只有1只的概念
+    result = []
+    for concept, cnt in raw_tags.most_common(30):
+        if cnt < min_stocks:
+            continue
+        stocks = tag_stocks.get(concept, [])
+        codes = [s["code"] for s in stocks]
+        names = [s["name"] for s in stocks]
+        avg_chg = sum(s["chg"] for s in stocks) / len(stocks) if stocks else 0
+
+        result.append({
+            "concept": concept,
+            "limit_up_count": cnt,
+            "stock_count": len(stocks),
+            "avg_chg_pct": round(avg_chg, 1),
+            "codes": codes,
+            "names": names,
+        })
+
+    return result
 
 
 def compute_sector_perf(kline_map, stock_sector_map, index_df, target_date):
@@ -354,7 +442,7 @@ def pick_representative_stocks(sector_name, codes, kline_map, n=5):
 # Layer 4: 单票深度分析
 # ============================================================
 
-def deep_analyze(code, name, sector, target_date, kline_df=None, diagnosis=None):
+def deep_analyze(code, name, sector, target_date, kline_df=None, diagnosis=None, causal_context=None):
     """
     对单只股票做深度分析:
     - K线形态
@@ -619,6 +707,7 @@ def deep_analyze(code, name, sector, target_date, kline_df=None, diagnosis=None)
         } if lu_result and lu_result.get("is_limit_up") else None,
         "tomorrow_advice": tomorrow_advice,
         "market_temp": temp,
+        "causal_context": causal_context,  # v3 产业链因果
     }
 
 
@@ -626,7 +715,7 @@ def deep_analyze(code, name, sector, target_date, kline_df=None, diagnosis=None)
 # 主流程
 # ============================================================
 
-def run(target_date=None, top_sectors=TOP_SECTORS, per_sector=TOP_PER_SECTOR):
+def run(target_date=None, per_sector=TOP_PER_SECTOR):
     """主流水线"""
     ensure_dirs()
 
@@ -665,64 +754,41 @@ def run(target_date=None, top_sectors=TOP_SECTORS, per_sector=TOP_PER_SECTOR):
         print("\n  ⚠️ 大盘温度过低，不建议交易")
         return
 
-    # ========== Layer 2: Top 3 共振板块 ==========
-    print(f"\n[Layer 2] Top {top_sectors} 共振板块...")
+    # ========== Layer 2: 同花顺最强风口 ==========
+    concept_resonance = compute_ths_resonance(target_date, kline_map, min_stocks=2)
 
-    # 板块分类
-    cache_path = ROOT / "data" / "sector_classification.json"
-    stock_sector_map = {}
-    if cache_path.exists():
-        with open(cache_path) as f:
-            cached = json.load(f)
-        all_codes = list(kline_map.keys())
-        for code in all_codes:
-            if code in cached:
-                stock_sector_map[code] = cached[code]
-            elif code.startswith("300") or code.startswith("301"):
-                stock_sector_map[code] = "创业板"
-            elif code.startswith("002") or code.startswith("000"):
-                stock_sector_map[code] = "深市主板"
-            elif code.startswith("6"):
-                stock_sector_map[code] = "沪市主板"
-
-    sector_perf = compute_sector_perf(kline_map, stock_sector_map, index_df, target_date)
-    enrich_with_board_data(sector_perf, target_date)
-
-    if sector_perf.empty:
-        print("  无法计算板块收益")
+    if not concept_resonance:
+        print("  ⚠️ 无法获取同花顺风口数据")
         return
 
-    # 过滤
-    GENERIC = {"沪市主板", "深市主板", "创业板", "科创板", "其他", "未分类"}
-    sector_perf = sector_perf[
-        (~sector_perf["sector"].isin(GENERIC)) &
-        (sector_perf["n_stocks"] >= MIN_SECTOR_STOCKS)
-    ]
+    # 动态取风口数量：有多少个满足条件的就显示多少个
+    top_concepts = concept_resonance
+    num_fengkou = len(top_concepts)
+    print(f"\n[Layer 2] 同花顺最强风口 — {num_fengkou} 个:")
+    for cr in top_concepts:
+        top_names = ','.join(cr.get('names', cr.get('codes', []))[:3])
+        print(f"    {cr['concept']:<10s} 🔥{cr['limit_up_count']}只  "
+              f"均涨幅{cr['avg_chg_pct']:+.1f}%  {top_names[:40]}")
 
-    top_sector_list = sector_perf.head(top_sectors)
-
-    print(f"  共振板块:")
-    for _, sr in top_sector_list.iterrows():
-        print(f"    {sr['sector']:<12s} 共振{sr['resonance_score']:.0f}分  "
-              f"1d{sr['excess_1d']*100:+.1f}%  5d{sr['excess_5d']*100:+.1f}%  "
-              f"10d{sr['excess_10d']*100:+.1f}%  ({sr['n_stocks']}只)")
-
-    # ========== Layer 3: 每板块选代表股 ==========
-    print(f"\n[Layer 3] 每板块选 {per_sector} 只代表股...")
+    # ========== Layer 3: 每概念选代表股 ==========
+    print(f"\n[Layer 3] 每概念选 {per_sector} 只领头羊...")
     all_picks = []
-    for _, sr in top_sector_list.iterrows():
-        sec = sr["sector"]
-        sec_codes = [c for c, s in stock_sector_map.items() if s == sec and c in kline_map]
-        picks = pick_sector_leaders(sec, sec_codes, kline_map, n=per_sector)
+    for cr in top_concepts:
+        concept = cr["concept"]
+        concept_codes = [c for c in cr["codes"] if c in kline_map and not c.startswith("688")]
+        picks = pick_sector_leaders(concept, concept_codes, kline_map, n=per_sector)
         for p in picks:
-            p["sector"] = sec
-            p["resonance"] = sr["resonance_score"]
+            p["sector"] = concept
+            p["resonance"] = cr["limit_up_count"] * 10  # 涨停数×10 作为共振分
         all_picks.extend(picks)
-        leaders_str = " | ".join(
-            f"{p['name']}({p['score']:.0f}分{'🔥'+p['seal_label'] if p.get('seal_label') else ''})"
-            for p in picks[:3]
-        )
-        print(f"  {sec}: {len(picks)}只领头羊 | {leaders_str}")
+        if picks:
+            leaders_str = " | ".join(
+                f"{p['name']}({p['score']:.0f}分{'🔥'+p['seal_label'] if p.get('seal_label') else ''})"
+                for p in picks[:3]
+            )
+            print(f"  {concept}: {len(picks)}只领头羊 | {leaders_str}")
+        else:
+            print(f"  {concept}: 0只 (无符合条件的领头羊)")
 
     # ========== Layer 3.4: 全市场战法扫描 ==========
     print(f"\n[Layer 3.4] 全市场战法扫描 (4485只)...")
@@ -787,11 +853,16 @@ def run(target_date=None, top_sectors=TOP_SECTORS, per_sector=TOP_PER_SECTOR):
     leader_board = {}    # {sub_tag: leader_code}
     cross_sector_additions = set()  # 跨板块补全候选
     meaningful_subs = {}
+    # 所有共振概念的成分股代码
+    resonant_codes = set()
+    for cr in top_concepts:
+        resonant_codes.update(cr["codes"])
+    resonant_concept_names = {cr["concept"] for cr in top_concepts}
 
-    for _, sr in top_sector_list.iterrows():
-        sec = sr["sector"]
-        sec_codes = [c for c, s in stock_sector_map.items() if s == sec and c in kline_map]
-        for code in sec_codes[:50]:  # 扩大扫描以捕获细分关联
+    for cr in top_concepts:
+        for code in cr["codes"][:50]:
+            if code not in kline_map or code.startswith("688"):
+                continue
             try:
                 tags = _ecb(code).get("concept_tags", [])
                 stock_sub_tags[code] = tags
@@ -803,15 +874,20 @@ def run(target_date=None, top_sectors=TOP_SECTORS, per_sector=TOP_PER_SECTOR):
                 pass
             time.sleep(0.5)
 
-    # 找有意义的细分标签（≥2只股票共享，且不是宽泛类别）
+    # 找有意义的细分标签
     GENERIC_TAGS = {"融资融券", "沪股通", "深股通", "创业板", "科创板", "机构重仓",
-                    "央国企改革", "昨日涨停", "破增发价股", "创业成份"}
+                    "央国企改革", "昨日涨停", "破增发价股", "创业成份",
+                    "一季报增长", "业绩增长", "定增", "定增通过", "股权激励",
+                    "扭亏为盈", "摘帽", "摘帽预期", "年报预增", "一季报预增",
+                    "2025年报预增", "2025年报扭亏", "2026一季报预增", "2026一季报扭亏",
+                    "庭外重组", "债务豁免", "央企", "无锡国资", "炭黑龙头", "氮化铝",
+                    "小盘成长", "小盘价值", "大盘成长", "大盘价值", "小盘股", "微盘股"}
     meaningful_subs = {}
     for tag, codes in sub_sectors.items():
-        if len(codes) >= 2 and tag not in GENERIC_TAGS and tag not in top_sector_list["sector"].values:
+        if len(codes) >= 2 and tag not in GENERIC_TAGS and tag not in resonant_concept_names:
             meaningful_subs[tag] = codes
 
-    # 在每个细分标签内找龙头（最早涨停+最强量比）
+    # 在每个细分标签内找龙头
     for tag, codes in meaningful_subs.items():
         best_code, best_score = None, -999
         for code in codes:
@@ -830,21 +906,15 @@ def run(target_date=None, top_sectors=TOP_SECTORS, per_sector=TOP_PER_SECTOR):
         if best_code:
             leader_board[tag] = best_code
 
-    # 跨板块补全：找不在共振板块但在同一细分概念的票
+    # 跨板块补全
     cross_sector_additions = set()
     for tag, codes in meaningful_subs.items():
         if len(codes) >= 2:
-            # 至少有一只已经在共振板块内
-            has_resonant = any(
-                stock_sector_map.get(c) in top_sector_list["sector"].values
-                for c in codes
-            )
+            has_resonant = any(c in resonant_codes for c in codes)
             if has_resonant:
                 for c in codes:
-                    sec = stock_sector_map.get(c, "?")
-                    if sec not in top_sector_list["sector"].values and c in kline_map:
-                        if not c.startswith("688"):
-                            cross_sector_additions.add((c, tag))
+                    if c not in resonant_codes and c in kline_map and not c.startswith("688"):
+                        cross_sector_additions.add((c, tag))
     if cross_sector_additions:
         print(f"  跨板块补全: {len(cross_sector_additions)} 只")
 
@@ -861,7 +931,7 @@ def run(target_date=None, top_sectors=TOP_SECTORS, per_sector=TOP_PER_SECTOR):
     try:
         from bottleneck_discovery import run_full_discovery as run_bn, load_all_stock_names
         bn_all_stocks = load_all_stock_names()
-        resonant_sec_names = [sr["sector"] for _, sr in top_sector_list.iterrows()]
+        resonant_sec_names = [cr["concept"] for cr in top_concepts]
         bn_result = run_bn(
             resonant_sectors=resonant_sec_names,
             target_date=target_date,
@@ -899,8 +969,8 @@ def run(target_date=None, top_sectors=TOP_SECTORS, per_sector=TOP_PER_SECTOR):
     except Exception as e:
         print(f"  瓶颈发现失败: {e}，使用旧版 map_supply_chain")
         from supply_chain_mapper import map_supply_chain
-        for _, sr in top_sector_list.iterrows():
-            sec = sr["sector"]
+        for cr in top_concepts:
+            sec = cr["concept"]
             try:
                 sc = map_supply_chain(sec)
                 for lk, bl in sc.get("bottleneck_layers", {}).items():
@@ -937,12 +1007,14 @@ def run(target_date=None, top_sectors=TOP_SECTORS, per_sector=TOP_PER_SECTOR):
             bn_materials = bn_info.get("materials", [])
             bn_layer = bn_info.get("layer", "瓶颈卡位")
             bn_cat = bn_info.get("categories", [""])[0] if bn_info.get("categories") else ""
+            bn_causal = bn_info.get("causal_context")  # v3 产业链因果
             all_picks.append({
                 "code": bc,
                 "name": bn_info.get("name", ""),
                 "sector": f"瓶颈:{','.join(bn_materials[:2])}",
                 "bottleneck_layer": bn_layer,
                 "bottleneck_material": ",".join(bn_materials[:3]),
+                "causal_context": bn_causal,  # 产业链因果上线文
                 "close": bn_info.get("price", 0),
                 "change_pct": bn_info.get("chg_pct", 0),
                 "vol_ratio": 1.0,
@@ -996,6 +1068,23 @@ def run(target_date=None, top_sectors=TOP_SECTORS, per_sector=TOP_PER_SECTOR):
     if ripple_stocks:
         print(f"  新闻驱动合计: {len(ripple_stocks)} 只")
 
+    # 去重: 同一只票优先保留评分最高的赛道
+    seen_codes = {}
+    deduped = []
+    for p in all_picks:
+        code = p["code"]
+        if code in seen_codes:
+            if p.get("score", 0) > seen_codes[code].get("score", 0):
+                deduped.remove(seen_codes[code])
+                seen_codes[code] = p
+                deduped.append(p)
+        else:
+            seen_codes[code] = p
+            deduped.append(p)
+    if len(deduped) < len(all_picks):
+        print(f"  去重: {len(all_picks)} → {len(deduped)} 只")
+    all_picks = deduped
+
     print(f"\n  共 {len(all_picks)} 只代表股待分析 (含{len(bottleneck_stocks)}只瓶颈 + {len(ripple_stocks)}只新闻驱动)")
 
     # ========== Layer 4: 消息面分析 ==========
@@ -1039,7 +1128,8 @@ def run(target_date=None, top_sectors=TOP_SECTORS, per_sector=TOP_PER_SECTOR):
         try:
             item = kline_map.get(code)
             kline = item["kline"] if isinstance(item, dict) else item
-            result = deep_analyze(code, name, sec, target_date, kline_df=kline, diagnosis=diagnosis)
+            result = deep_analyze(code, name, sec, target_date, kline_df=kline, diagnosis=diagnosis,
+                                   causal_context=pick.get("causal_context"))
 
             # 注入领头羊评分 (从 Layer 3 pick 透传)
             if result and pick.get("score"):
@@ -1120,7 +1210,7 @@ def run(target_date=None, top_sectors=TOP_SECTORS, per_sector=TOP_PER_SECTOR):
     print(f"  最终推荐 — 仅 BUY ({len(buy_results)} 只)")
     print(f"{'='*70}")
     print(f"  大盘温度: {temp:.0f}/100 ({signal})  模式: {regime}  波动率: {vol_regime}")
-    print(f"  共振板块: {', '.join(sr['sector'] for _, sr in top_sector_list.iterrows())}")
+    print(f"  共振概念: {', '.join(cr['concept'] for cr in top_concepts)}")
     print()
 
     if not buy_results:
@@ -1275,13 +1365,11 @@ def run_full_agent_debate(scored, diagnosis):
 def main():
     parser = argparse.ArgumentParser(description="量化短线交易流水线 — 聚焦模式")
     parser.add_argument("--date", type=str, default=None, help="目标日期 YYYY-MM-DD")
-    parser.add_argument("--sectors", type=int, default=3, help="Top N 共振板块")
-    parser.add_argument("--per-sector", type=int, default=5, help="每板块选几只")
+    parser.add_argument("--per-fengkou", type=int, default=5, help="每个风口选几只领头羊")
     args = parser.parse_args()
 
     run(target_date=args.date,
-        top_sectors=args.sectors,
-        per_sector=args.per_sector)
+        per_sector=args.per_fengkou)
 
 
 if __name__ == "__main__":

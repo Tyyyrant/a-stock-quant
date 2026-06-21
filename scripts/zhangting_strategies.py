@@ -127,6 +127,15 @@ def classify_abc_zone(kline_df) -> dict:
     if 5 < price_vs_ma20 < 20:
         a_signals += 1
         a_reasons.append("适中偏离")
+    # A5: 均线密集聚拢 (MA间距<3%)
+    ma_spread = (max(ma5, ma10, ma20) / min(ma5, ma10, ma20) - 1)
+    if ma_spread < 0.03:
+        a_signals += 1; a_reasons.append("均线密集聚拢")
+    # A6: 均线向上散发 (MA间距扩大30%+)
+    g5 = abs(ma5/ma10 - 1)
+    g5_5d = abs(np.mean(close[-5:]) / np.mean(close[-10:-5]) - 1) if len(close) >= 10 else 0
+    if g5 > g5_5d * 1.3:
+        a_signals += 1; a_reasons.append("均线向上散发")
 
     if a_signals >= 4:
         return {"zone": "A", "zone_score": a_signals,
@@ -141,14 +150,19 @@ def classify_abc_zone(kline_df) -> dict:
                 "zone_reason": f"量价异动+均线归位 ({anomaly_return['type']})",
                 "features": features}
 
-    # === B区 ===
-    b_reasons = []
-    if ma5 > ma10 or price > ma20:
-        b_reasons.append("偏多震荡")
-    else:
-        b_reasons.append("中性整理")
-    return {"zone": "B", "zone_score": 1,
-            "zone_reason": "; ".join(b_reasons), "features": features}
+    # === B区 (蓄势待发) ===
+    b_signals = 0; b_reasons = []
+    if ma5 > ma10: b_signals += 2; b_reasons.append("短线偏多")
+    elif price > ma10: b_signals += 1; b_reasons.append("站上MA10")
+    if price > ma20: b_signals += 1; b_reasons.append("站上MA20")
+    if abs(ma5/ma10 - 1) < 0.02: b_signals += 1; b_reasons.append("均线纠缠蓄势")
+    if price_vs_ma20 > 0 and np.mean(close[-5:]) < ma20: b_signals += 2; b_reasons.append("低位突破MA20")
+    if 0.8 < vol_ratio < 1.5: b_signals += 1; b_reasons.append("量能正常")
+    if b_signals >= 2:
+        return {"zone": "B", "zone_score": b_signals,
+                "zone_reason": "; ".join(b_reasons), "features": features}
+    return {"zone": "—", "zone_score": 0,
+            "zone_reason": "均线混乱无方向", "features": features}
 
 
 # ══════════════════════════════════════════════════════════════
@@ -291,32 +305,25 @@ def detect_washout_reversal(kline_df) -> dict:
     today_close = close[-1]
     today_vol = vol[-1]
 
-    # 条件1: 前日大阴 (>4%跌幅)
-    if prev_chg > -4:
-        return {"is_washout": False}
-
-    # 条件2: 今日阳包阴 (收阳 且 收盘超过前日开盘)
+    # 三种洗盘模式
     is_yang = today_close > today_open
     full_engulf = today_close > prev_open
+    prev_high = kline_df["high"].values[-2]
+    prev_body = abs(prev_close - prev_open)
+    prev_upper_shadow = prev_high - max(prev_open, prev_close)
+    is_long_upper = prev_upper_shadow > prev_body * 1.5 and prev_upper_shadow > 0.02 * prev_close
+    is_big_vol = prev_vol > np.mean(kline_df["volume"].values[-20:]) * 1.5
+    prev_low = kline_df["low"].values[-2]
+    is_fake_yang = prev_close > prev_open and (prev_close - prev_low) < prev_body * 0.5
 
-    if not (is_yang and full_engulf):
-        return {"is_washout": False}
-
-    # 条件3: 量能确认 (今日量 > 前日量或均值)
-    vol_confirm = today_vol > prev_vol
-
-    # 强度评分
-    engulf_ratio = (today_close / prev_open - 1) * 100  # 超越前日开盘的幅度
-    strength = 5 + min(engulf_ratio * 2, 10) + (3 if vol_confirm else 0)
-
-    return {
-        "is_washout": True,
-        "strength": round(strength, 1),
-        "prev_chg": round(prev_chg, 1),
-        "engulf_pct": round(engulf_ratio, 1),
-        "vol_confirm": vol_confirm,
-        "pattern": "单日强硬洗盘反包",
-    }
+    if prev_chg < -4 and is_yang and full_engulf:
+        vc = today_vol > prev_vol; er = (today_close / prev_open - 1) * 100
+        return {"is_washout": True, "pattern": "大阴洗盘反包", "strength": round(5 + min(er * 2, 10) + (3 if vc else 0), 1), "engulf_pct": round(er, 1), "vol_confirm": vc}
+    elif is_long_upper and is_big_vol and is_yang and today_close > prev_close:
+        return {"is_washout": True, "pattern": "长上影洗盘反包", "strength": round(7 + (3 if today_vol > prev_vol else 0), 1), "engulf_pct": round((today_close / prev_close - 1) * 100, 1), "vol_confirm": today_vol > prev_vol}
+    elif is_fake_yang and is_big_vol and is_yang and today_close > prev_high:
+        return {"is_washout": True, "pattern": "黑太阳洗盘反包", "strength": round(8 + (3 if today_vol > prev_vol else 0), 1), "engulf_pct": round((today_close / prev_high - 1) * 100, 1), "vol_confirm": today_vol > prev_vol}
+    return {"is_washout": False}
 
 
 # ══════════════════════════════════════════════════════════════
@@ -453,8 +460,10 @@ def score_signal_resonance(kline_df, existing_signals: dict = None) -> dict:
         total += 10
         signals.append(f"A区强势({zone['zone_reason']})")
     elif zone["zone"] == "B":
-        total += 3
-        signals.append(f"B区次级({zone['zone_reason']})")
+        total += 5
+        signals.append(f"B区蓄势({zone['zone_reason']})")
+    elif zone["zone"] == "—":
+        signals.append(f"无明确区间({zone['zone_reason']})")
     else:  # C
         total -= 10
         signals.append(f"⚠C区风险({zone['zone_reason']})")
@@ -528,6 +537,53 @@ def score_signal_resonance(kline_df, existing_signals: dict = None) -> dict:
 # ══════════════════════════════════════════════════════════════
 # CLI 测试
 # ══════════════════════════════════════════════════════════════
+
+def detect_volume_accumulation(kline_df) -> dict:
+    """三度之厚度 — 底部量能堆积"""
+    if len(kline_df) < 60: return {"has_thickness": False, "score": 0}
+    c = kline_df["close"].values; v = kline_df["volume"].values; o = kline_df["open"].values
+    # 用 5-7 天短周期基准（用户诉求：不稀释近期量变）
+    v5 = np.mean(v[-6:-1]) if len(v) >= 6 else np.mean(v)      # 5日均量
+    v7 = np.mean(v[-8:-1]) if len(v) >= 8 else v5              # 7日均量
+    bv = v5 if v5 > 0 else np.mean(v)                           # 以5日均量为基准
+    tb = sum(1 for i in range(-7, -1) if v[i] > bv*1.5 and c[i] > o[i])  # 近7天>1.5x
+    wd = sum(1 for i in range(-7, -1) if v[i] > bv*1.2)                # 近7天>1.2x
+    yr = sum(1 for i in range(-7, -1) if c[i] > o[i]) / 7              # 7天阳量比
+    v_prev7 = np.mean(v[-14:-7]) if len(v) >= 14 else bv               # 前7天
+    acc = v5 > v_prev7*1.3; tup = v5 > v7*1.1                          # 加速+趋势
+    sc = 0; rs = []
+    if tb >= 3: sc += 3; rs.append(f"近7天大阳量{tb}根")
+    elif tb >= 1: sc += 1
+    if wd >= 5: sc += 2; rs.append(f"近7天放量{wd}天")
+    elif wd >= 3: sc += 1
+    if yr > 0.55: sc += 1; rs.append(f"阳量占比{yr:.0%}")
+    if tup: sc += 1; rs.append("量能趋势向上")
+    if acc: sc += 2; rs.append("量能加速放大")
+    return {"has_thickness": sc>=3, "score": sc, "reasons": rs, "tall_bars": tb, "wide_days": wd, "yang_ratio": round(yr,2), "vol_trend_up": tup, "vol_accel": acc}
+
+
+def classify_pullup_intent(kline_df) -> dict:
+    """主力意图四分类"""
+    if len(kline_df) < 60: return {"intent": "unknown", "confidence": 0, "price_position_pct": 0}
+    c = kline_df["close"].values; v = kline_df["volume"].values
+    h = kline_df["high"].values; l = kline_df["low"].values; o = kline_df["open"].values
+    p = c[-1]; h60 = np.max(h[-60:]); l60 = np.min(l[-60:])
+    pct = (p - l60) / max(h60 - l60, 0.01)
+    v20 = np.mean(v[-21:-1]); vr = v[-1] / max(v20, 1)
+    bb = sum(1 for i in range(-40, -10) if c[i] < np.mean(c[-60:])*1.1 and v[i] > v20*1.5)
+    m5 = np.mean(c[-5:]); m10 = np.mean(c[-10:]); pos = round(pct*100)
+    if pct > 0.85 and vr > 1.5 and c[-1] < o[-1]:
+        return {"intent": "拉高出货", "confidence": 0.7, "price_position_pct": pos, "detail": "高位放量收阴，主力派发"}
+    elif bb >= 3 and pct < 0.5:
+        return {"intent": "抢筹建仓", "confidence": 0.6+min(bb*0.05,0.3), "price_position_pct": pos, "detail": f"底部堆量{int(bb)}天"}
+    elif pct > 0.5 and vr > 1.2 and m5 > m10:
+        return {"intent": "拉高冲刺", "confidence": 0.55, "price_position_pct": pos, "detail": "中高位放量推进，加速拉升"}
+    elif pct < 0.3 and np.mean(v[-5:]) < v20*0.7:
+        return {"intent": "收筹硬盘", "confidence": 0.5, "price_position_pct": pos, "detail": "底部缩量磨盘"}
+    elif vr > 1.5 and c[-1] > o[-1] and pct < 0.65:
+        return {"intent": "探测盘面", "confidence": 0.5, "price_position_pct": pos, "detail": "放量大阳，可能试盘"}
+    return {"intent": "常规运作", "confidence": 0.3, "price_position_pct": pos, "detail": "无特殊意图"}
+
 
 if __name__ == "__main__":
     import sys

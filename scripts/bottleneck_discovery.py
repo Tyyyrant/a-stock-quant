@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
 """
-供应链瓶颈全面发现引擎 v2
+供应链瓶颈全面发现引擎 v3 — 集成产业因果推理
 
-彻底替代旧 map_supply_chain() 的局限性:
-- 旧: 依赖 supply_chain.yaml 预建知识库 (只有5个主题)
-- 新: 38种瓶颈材料 × 5000+股票名称关键词搜索 → 全覆盖
+v3 升级:
+  - 加载 supply_chain_causal_graph.json 产业链因果知识图谱
+  - 每只瓶颈标的自动匹配因果上下文（需求驱动力/供给约束/缺口%/国产逻辑）
+  - 输出带完整产业逻辑的瓶颈候选池 → 供 LLM 辩论使用
+
+v2:
+  - 旧: 依赖 supply_chain.yaml 预建知识库 (只有5个主题)
+  - 新: 38种瓶颈材料 × 5000+股票名称关键词搜索 → 全覆盖
 
 策略:
-  1. 定义瓶颈材料→搜索关键词映射 (覆盖半导体/PCB/先进封装/元件全材料链)
-  2. 加载全A 5800只股票名称
-  3. 名称关键词搜索 → 初步匹配
-  4. 概念标签验证 (可选,需API)
-  5. 技术面评分排序
-  6. 输出 Top N 瓶颈标的
+  1. 加载产业链因果知识图谱 (why)
+  2. 定义瓶颈材料→搜索关键词映射 (who)
+  3. 加载全A 5800只股票名称
+  4. 名称关键词搜索 → 初步匹配
+  5. 技术面评分排序 (when)
+  6. 注入因果上下文 → 输出带完整产业逻辑的候选池
 
 用法:
   python3 scripts/bottleneck_discovery.py --date 2026-06-19
@@ -27,6 +32,96 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
+
+# ============================================================
+# 加载产业链因果知识图谱
+# ============================================================
+
+_causal_graph = None
+
+def load_causal_graph() -> dict:
+    """加载产业链因果知识图谱（模块级缓存）"""
+    global _causal_graph
+    if _causal_graph is not None:
+        return _causal_graph
+    path = ROOT / "config" / "supply_chain_causal_graph.json"
+    if path.exists():
+        with open(path) as f:
+            _causal_graph = json.load(f)
+        materials = _causal_graph.get("materials", {})
+        real = sum(1 for v in materials.values() if "demand_drivers" in v)
+        print(f"  因果图谱加载: {real} 条完整产业链逻辑")
+        return _causal_graph
+    print(f"  [WARN] 因果图谱未找到: {path}")
+    _causal_graph = {"materials": {}}
+    return _causal_graph
+
+
+def get_causal_context(material_name: str):
+    """获取单个瓶颈材料的因果上下文"""
+    graph = load_causal_graph()
+    materials = graph.get("materials", {})
+
+    # 直接匹配
+    if material_name in materials:
+        m = materials[material_name]
+        if "demand_drivers" in m:
+            return m
+        # 继承引用
+        inherit = m.get("inherit_from")
+        if inherit and inherit in materials:
+            return materials[inherit]
+
+    # 模糊匹配 (去掉括号和连字符)
+    clean = material_name.replace("(HVLP)", "").replace("(InP)", "").replace("(TFLN)", "").strip()
+    for k, v in materials.items():
+        clean_k = k.replace("(HVLP)", "").replace("(InP)", "").replace("(TFLN)", "").strip()
+        if clean == clean_k and "demand_drivers" in v:
+            return v
+
+    return None
+
+
+def enrich_with_causal_context(verified_stocks: list[dict]) -> list[dict]:
+    """为每只瓶颈标的注入产业链因果上下文"""
+    for stock in verified_stocks:
+        materials = stock.get("materials", [])
+        if not materials:
+            stock["causal_context"] = None
+            continue
+
+        # 为主要材料（第一个）获取因果链
+        primary = materials[0]
+        ctx = get_causal_context(primary)
+
+        if ctx:
+            # 检查该股票是否在因果图谱中列为核心玩家
+            player_info = None
+            for p in ctx.get("domestic_players", []):
+                if p.get("code") == stock["code"]:
+                    player_info = p
+                    break
+
+            stock["causal_context"] = {
+                "primary_material": primary,
+                "demand_drivers": [d.get("mechanism", "")[:80] for d in ctx.get("demand_drivers", [])],
+                "supply_constraints": [c.get("mechanism", "")[:80] for c in ctx.get("supply_constraints", [])],
+                "gap_summary": ctx.get("self_sufficiency", ""),
+                "investment_thesis": ctx.get("investment_thesis", ""),
+                "causal_chain": ctx.get("causal_chain", ""),
+                "key_events": ctx.get("key_events", []),
+                "player_role": player_info.get("progress", "") if player_info else "",
+                "is_named_player": player_info is not None,
+            }
+        else:
+            # 没有因果上下文，给个基础版
+            stock["causal_context"] = {
+                "primary_material": primary,
+                "investment_thesis": f"瓶颈材料: {', '.join(materials[:3])}",
+                "is_named_player": False,
+            }
+
+    return verified_stocks
 
 # ============================================================
 # 瓶颈材料全景图谱 (38种 → 关键词 → A股名称特征)
@@ -568,11 +663,30 @@ def tech_verify_candidates(
             cs_val = c.get("chip_score", 0)
             profit_ratio = c.get("profit_ratio", 0)
 
-            # 瓶颈评分: 材料数越多越重要 + 技术面
+            # 瓶颈评分: 材料数越多越重要 + 产业链因果加成
             n_materials = len(info["materials"])
             mat_bonus = min(n_materials * 5, 20)  # 跨材料叠加最多+20
 
-            tech_score = ks * 0.35 + max(vs_val, -50) * 0.3 + cs_val * 0.25 + mat_bonus
+            # 因果加成 (v3): 从知识图谱实时计算产业链重要性
+            causal_bonus = 0
+            primary_mat = info["materials"][0] if info["materials"] else ""
+            ctx = get_causal_context(primary_mat)
+            if ctx:
+                # 核心玩家: 股票代码在因果图谱中
+                player_codes = {p["code"] for p in ctx.get("domestic_players", [])}
+                if code in player_codes:
+                    causal_bonus += 8
+                gap = ctx.get("self_sufficiency", "")
+                if any(w in gap for w in ["缺口70", "缺口50", "缺口40", "缺口30", "<5%", "≈0%", "0%"]):
+                    causal_bonus += 5  # 严重缺口头
+                elif any(w in gap for w in ["<15%", "<20%", "20-25%", "15%", "10-15%"]):
+                    causal_bonus += 3  # 中等缺口
+                if ctx.get("causal_chain"):
+                    causal_bonus += 2  # 有完整因果链
+                if ctx.get("key_events"):
+                    causal_bonus += 2  # 有近期催化剂
+
+            tech_score = ks * 0.35 + max(vs_val, -50) * 0.3 + cs_val * 0.25 + mat_bonus + causal_bonus
 
             # 亏损股扣分但不毙 (瓶颈标的稀缺，PE高也值得看)
             try:
@@ -674,6 +788,17 @@ def run_full_discovery(
     )
 
     discovery["verified_top"] = verified
+
+    # Phase 3: 注入产业链因果上下文
+    print("\n[Phase 3] 注入产业链因果上下文...")
+    enriched = enrich_with_causal_context(verified)
+    enriched_summary = [(s["code"], s.get("causal_context", {}).get("primary_material", "?"),
+                         s.get("causal_context", {}).get("is_named_player", False))
+                        for s in enriched]
+    named = sum(1 for _, _, n in enriched_summary if n)
+    print(f"  因果图谱匹配: {named}/{len(enriched)} 只为核心玩家")
+
+    discovery["verified_top"] = enriched
     return discovery
 
 

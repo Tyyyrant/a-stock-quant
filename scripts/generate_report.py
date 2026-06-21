@@ -50,7 +50,7 @@ try:
         sec = str(row.get('sector',''))
         if sec and '瓶颈' not in sec and '新闻' not in sec and '卡位' not in sec:
             sector_counts[sec] += 1
-    top_sectors = [s for s, _ in sector_counts.most_common(3)]
+    top_sectors = [s for s, _ in sector_counts.most_common()]  # 全部动态
     n_sectors = len(top_sectors)
 except Exception:
     top_sectors = ["PCB", "半导体", "先进封装"]
@@ -126,11 +126,28 @@ if os.path.exists(bn_path):
     try:
         with open(bn_path) as f: bn_data = json.load(f)
         for s in bn_data.get("verified_top", [])[:5]:
+            ctx = s.get('causal_context') or {}
+            thesis = ctx.get('investment_thesis', '')
+            gap = ctx.get('gap_summary', '')
+            is_player = ctx.get('is_named_player', False)
+            # 取一句最精炼的产业逻辑（含缺口 + 核心结论）
+            logic_line = ''
+            if thesis:
+                parts = thesis.replace('。', '。').split('。')
+                # 优先取包含缺口/替代/管制的句子
+                picked = parts[0]
+                for p in parts:
+                    if any(w in p for w in ['缺口', '替代', '管制', '垄断', '断供', '退出']):
+                        picked = p; break
+                logic_line = picked[:80]
+            elif ctx.get('causal_chain'):
+                logic_line = ctx['causal_chain'].split('→')[-1].strip()[:60]
             bn_picks_from_file.append({
                 'code': s['code'], 'name': s.get('name',''), 'price': s.get('price',0),
                 'chg_pct': s.get('chg_pct',0), 'k_score': s.get('k_score',0),
                 'v_score': s.get('v_score',0),
                 'layer': s.get('layer',''), 'source': ','.join(s.get('materials',[])[:2]),
+                'causal_line': logic_line,
             })
     except Exception:
         pass
@@ -210,6 +227,12 @@ if warfare_picks:
     track2_html += '</table>\n<div class="legend"><span class="wf-tag wf-bsx">逼空星线</span><span class="wf-tag wf-lg">拉高抢筹</span><span class="wf-tag wf-aq">A区起涨</span><span class="wf-tag wf-lb">猎取B区</span> 全市场扫描·只显示真正触发</div>'
 else:
     track2_html = '<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px">今日无符合战法的股票</div>\n<div class="legend">全市场4485只扫描·四大战法均未触发</div>'
+
+# 瓶颈产业逻辑 (放到网格外独立区块)
+causal_notes = ''.join(
+    f'<span style="margin-right:12px;white-space:nowrap">🔗 <b>{s["name"]}</b> {s.get("causal_line","")}</span>'
+    for s in bn_picks if s.get('causal_line','') and '瓶颈材料' not in s.get('causal_line','')
+)
 
 html = f'''<!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8"><style>
 :root{{--bg:#f0f2f5;--card:#fff;--text:#1a1a2e;--muted:#8b8fa3;--border:#e8eaef;--up:#d4343e;--down:#1ca051;--t1:#e87400;--t2:#7c3aed;--t3:#b45309;--t4:#2563eb}}
@@ -306,7 +329,7 @@ tr:nth-child(even) td{{background:#fafbfc}}
 </div>
 <table>
 <tr><th>代码</th><th>名称</th><th style="text-align:right">现价</th><th style="text-align:right">涨跌</th><th style="text-align:right">K线</th><th style="text-align:right">量价</th><th>瓶颈卡位</th></tr>
-{''.join(stock_row(s, s.get('layer','')+'·'+s.get('source',''), 'font-size:8px;color:var(--t3);font-weight:700') for s in bn_picks)}
+{''.join(stock_row(s, s.get('layer','')[:4]+'·'+s.get('source','')[:16], 'font-size:8px;color:var(--t3);font-weight:700') for s in bn_picks)}
 </table>
 <div class="legend">{bn_legend}</div>
 </div>
@@ -325,6 +348,12 @@ tr:nth-child(even) td{{background:#fafbfc}}
 </div>
 
 </div><!-- /grid2x2 -->
+
+<!-- 产业链因果速览(网格外独立区块) -->
+<div style="background:var(--card);padding:10px 22px;font-size:9px;color:var(--muted);display:flex;flex-wrap:wrap;gap:2px 8px;align-items:center;line-height:1.8">
+<span style="font-weight:800;color:var(--t3);margin-right:4px">⛓ 瓶颈产业逻辑</span>
+{causal_notes if causal_notes else '<span>今日瓶颈标的待技术面验证</span>'}
+</div>
 
 <!-- ====== TOP 3 PICKS ====== -->
 <div class="top3-wrap">

@@ -80,8 +80,52 @@ def debate(stock: dict) -> dict:
     lu_label = lu.get("quality_label", "")
     lu_cont = lu.get("continuation_prob", 0)
 
-    prompt = f"""你是A股投资分析团队，对{name}({code})进行7-Agent完整辩论。日期: 2026-06-18。
+    # ── v3 产业链因果上下文 ──
+    causal = stock.get("causal_context") or {}
+    causal_block = ""
+    if causal and causal.get("investment_thesis"):
+        primary = causal.get("primary_material", "")
+        thesis = causal.get("investment_thesis", "")
+        demand = causal.get("demand_drivers", [])
+        supply = causal.get("supply_constraints", [])
+        gap = causal.get("gap_summary", "")
+        chain = causal.get("causal_chain", "")
+        events = causal.get("key_events", [])
+        player_role = causal.get("player_role", "")
+        is_named = causal.get("is_named_player", False)
 
+        causal_block = f"""
+## ⛓ 产业链逻辑（供应链瓶颈因果分析）
+
+该股票关联瓶颈材料: **{primary}**
+
+**需求驱动力:**
+{chr(10).join(f'- {d}' for d in demand[:3])}
+
+**供给约束:**
+{chr(10).join(f'- {s}' for s in supply[:3])}
+
+**供需缺口:** {gap}
+**投资逻辑:** {thesis}
+"""
+        if chain:
+            causal_block += f"\n**因果链:** {chain}\n"
+        if events:
+            causal_block += f"\n**关键催化剂:** {', '.join(events)}\n"
+        if is_named and player_role:
+            causal_block += f"\n**⚠️ 该股在因果图谱中为核心玩家:** {player_role}\n"
+        elif is_named:
+            causal_block += f"\n**⚠️ 该股在因果图谱中被标记为核心受益标的**\n"
+
+        # 将产业逻辑也加入多头理由
+        if chain and "瓶颈" in sector:
+            reasons_bull = list(reasons_bull) + [f"产业链:{primary}供需缺口{gap}"]
+        if is_named:
+            reasons_bull = list(reasons_bull) + [f"核心玩家:{primary}"]
+
+    prompt = f"""你是A股投资分析团队，对{name}({code})进行7-Agent完整辩论。日期: 2026-06-19。
+
+{causal_block}
 ## 关键数据
 现价: ¥{price:.2f} | 涨跌: {chg:+.1f}% | PE: {pe:.0f} | 市值: {mcap:.0f}亿 | 板块: {sector}
 K线形态: {k_score:+.0f} | 量价关系: {v_score:+.0f} | 筹码分布: {c_score:+.0f} | 获利盘: {profit_r:.0%}
