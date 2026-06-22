@@ -664,9 +664,11 @@ def format_report(r: dict) -> str:
     thick = r.get("thickness", {})
     if thick and "error" not in thick:
         score = thick.get("score", 0)
+        raw = thick.get("raw_score", 0)
+        coef = thick.get("position_coef", 1)
         icon = "✅" if thick.get("has_thickness") else "⚠️"
-        lines.append(f"  {icon} 三度厚度: {score}分 {'底部扎实' if score >= 3 else '厚度不足'} "
-                     f"(阳量{thick.get('yang_ratio',0):.0%} | 放量{thick.get('wide_days',0)}天 | 大阳量{thick.get('tall_bars',0)}根)")
+        lines.append(f"  {icon} 三度厚度: {score}分 (原始{raw}分×{coef}@{thick.get('position_pct',0)}%位"
+                     f" | 高{thick.get('height',0)}宽{thick.get('width',0)}密{thick.get('density',0)})")
 
     # 主力意图
     intent = r.get("pullup_intent", {})

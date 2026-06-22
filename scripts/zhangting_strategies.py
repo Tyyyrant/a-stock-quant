@@ -539,32 +539,71 @@ def score_signal_resonance(kline_df, existing_signals: dict = None) -> dict:
 # ══════════════════════════════════════════════════════════════
 
 def detect_volume_accumulation(kline_df) -> dict:
-    """三度之厚度 — 底部量能堆积"""
+    """
+    三度之"厚度" — 量形态的高度·宽度·密集度 × 位置系数
+
+    原著定义: 厚度 = 量形态之高度、宽度、密集度
+    关键前提: 低位堆量=收集(加分)，高位堆量=出货(警惕)
+    """
     if len(kline_df) < 60: return {"has_thickness": False, "score": 0}
-    c = kline_df["close"].values; v = kline_df["volume"].values; o = kline_df["open"].values
-    # 7日均量做放量基线（最佳折中：不被远期稀释，也不被短期欺骗）
-    v7 = np.mean(v[-8:-1]) if len(v) >= 8 else np.mean(v)      # 7日均量(放量基线)
-    v5 = np.mean(v[-6:-1]) if len(v) >= 6 else v7              # 5日均量
-    v_prev7 = np.mean(v[-14:-7]) if len(v) >= 14 else v7       # 前7天均量
+    c = kline_df["close"].values; v = kline_df["volume"].values
+    o = kline_df["open"].values; h = kline_df["high"].values; l = kline_df["low"].values
+
+    v7 = np.mean(v[-8:-1]) if len(v) >= 8 else np.mean(v)
+    v_prev7 = np.mean(v[-14:-7]) if len(v) >= 14 else v7
+
+    # ── 三维评分 (各0-2分，总共0-6) ──
+    # 高度: 近7天大阳量根数 (量>1.5x基线+阳线)
     tb = sum(1 for i in range(-7, -1) if v[i] > v7*1.5 and c[i] > o[i])
+    score_h = 2 if tb >= 3 else (1 if tb >= 1 else 0)
+
+    # 宽度: 近7天放量天数 (量>1.2x基线)
     wd = sum(1 for i in range(-7, -1) if v[i] > v7*1.2)
+    score_w = 2 if wd >= 5 else (1 if wd >= 3 else 0)
+
+    # 密集度: 近7天阳量占比
+    yr = sum(1 for i in range(-7, -1) if c[i] > o[i]) / 7
     streak = 0
     for i in range(-1, -8, -1):
         if c[i] > o[i]: streak += 1
         else: break
-    yr = sum(1 for i in range(-7, -1) if c[i] > o[i]) / 7
-    acc = v5 > v_prev7*1.3; tup = v5 > v7*1.1
-    sc = 0; rs = []
-    if tb >= 3: sc += 3; rs.append(f"大阳量{tb}根")
-    elif tb >= 1: sc += 1
-    if wd >= 5: sc += 2; rs.append(f"放量{wd}天")
-    elif wd >= 3: sc += 1
-    if streak >= 4: sc += 2; rs.append(f"连阳{streak}天")
-    elif streak >= 2: sc += 1
-    if yr > 0.55: sc += 1; rs.append(f"阳量占比{yr:.0%}")
-    if tup: sc += 1; rs.append("量能趋势向上")
-    if acc: sc += 2; rs.append("量能加速放大")
-    return {"has_thickness": sc>=3, "score": sc, "reasons": rs, "tall_bars": tb, "wide_days": wd, "streak": streak, "yang_ratio": round(yr,2), "vol_trend_up": tup, "vol_accel": acc}
+    score_d = 2 if yr >= 0.6 else (1 if yr >= 0.45 or streak >= 3 else 0)
+
+    raw = score_h + score_w + score_d  # 0-6
+
+    # ── 位置系数 ──
+    price = c[-1]
+    high_60 = np.max(h[-60:]); low_60 = np.min(l[-60:])
+    pos_pct = (price - low_60) / max(high_60 - low_60, 0.01)
+    if pos_pct < 0.30:
+        pos_coef = 1.2; pos_label = "低位"
+    elif pos_pct < 0.70:
+        pos_coef = 1.0; pos_label = "中位"
+    else:
+        pos_coef = 0.5; pos_label = "高位"
+
+    final = round(raw * pos_coef, 1)
+
+    # ── 加速度 (加分项，外围) ──
+    v5 = np.mean(v[-6:-1]) if len(v) >= 6 else v7
+    acc = v5 > v_prev7*1.3
+    if acc and final > 0: final = min(final + 1, 6)
+
+    # ── 原因 ──
+    rs = []
+    if score_h: rs.append(f"高度{score_h}分({tb}根大阳量)")
+    if score_w: rs.append(f"宽度{score_w}分({wd}天放量)")
+    if score_d: rs.append(f"密集度{score_d}分(阳量{yr:.0%})")
+    rs.append(f"{pos_label}×{pos_coef}")
+    if acc: rs.append("量能加速")
+
+    return {
+        "has_thickness": final >= 3, "score": final,
+        "raw_score": raw, "position_coef": pos_coef, "position_pct": round(pos_pct*100),
+        "height": score_h, "width": score_w, "density": score_d,
+        "reasons": rs, "tall_bars": tb, "wide_days": wd,
+        "streak": streak, "yang_ratio": round(yr, 2),
+    }
 
 
 def classify_pullup_intent(kline_df) -> dict:
