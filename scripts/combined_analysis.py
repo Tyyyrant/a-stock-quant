@@ -254,9 +254,32 @@ def fetch_stock_news(code: str, name: str) -> dict:
                 time.sleep(0.3)
             except Exception:
                 pass
+        # 产业链材料级新闻（查因果图谱中该股关联的材料名）
+        material_news = {}
+        try:
+            from bottleneck_discovery import load_causal_graph
+            graph = load_causal_graph()
+            mat_name = ""
+            for mn, md in graph.get("materials", {}).items():
+                for p in md.get("domestic_players", []):
+                    if p.get("code") == code:
+                        mat_name = mn; break
+                if mat_name: break
+            if mat_name and mat_name not in board_names:
+                inner_m = json.dumps({"uid":"","keyword":mat_name,"type":["cmsArticleWebOld"],"client":"web","clientType":"web","clientVersion":"curr","param":{"cmsArticleWebOld":{"searchScope":"default","sort":"default","pageIndex":1,"pageSize":3,"preTag":"","postTag":""}}}, separators=(',',':'))
+                r_m = requests.get("https://search-api-web.eastmoney.com/search/jsonp", params={"cb":cb,"param":inner_m}, headers={"User-Agent":UA,"Referer":"https://so.eastmoney.com/"}, timeout=10)
+                jm = r_m.text; jms = jm[jm.index("(")+1:jm.rindex(")")]
+                am = json.loads(jms).get("result",{}).get("cmsArticleWebOld",[]) or []
+                mn = []
+                for a in am[:3]:
+                    mn.append({"title": _re.sub(r'<[^>]+>','',a.get("title","")), "time": a.get("date","")})
+                if mn: material_news[mat_name] = mn
+        except Exception: pass
+
         return {
             "stock_news": sorted(news, key=lambda x: x.get("time", ""), reverse=True)[:6],
             "sector_news": sector_news,
+            "material_news": material_news,
         }
     except Exception as e:
         return {"error": str(e)[:80]}
