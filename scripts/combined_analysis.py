@@ -440,6 +440,9 @@ ABC三区: {zone.get('zone', '?')}区 ({zone.get('zone_score', 0)}分) — {zone
 个股新闻: {json.dumps(extra_data.get('news', {}), ensure_ascii=False)}
 板块归属: {json.dumps(extra_data.get('sector', {}), ensure_ascii=False)}
 
+## 实时板块数据（来自搜索引擎，当日真实行情）
+{extra_data.get("sector_context_json", "无实时板块数据")}
+
 直接输出分析内容，不要任何开场白（如"好的"、"以下是分析"、"基于您提供的数据"），不要客套话，不要重复我已经给你的数据。
 
 ## 一、资金面
@@ -451,8 +454,10 @@ ABC三区: {zone.get('zone', '?')}区 ({zone.get('zone_score', 0)}分) — {zone
 ## 三、产业链卡位
 公司在产业链中的位置、竞争壁垒、估值是否匹配地位。100-150字。
 
-## 四、关联板块
-列出该股所属的2-3个最强板块，分析板块整体走势、资金流入情况、未来一周持续性预判。100-150字。
+## 四、关联板块与市场环境
+先引用"实时板块数据"中该股所属板块的当日真实涨跌幅、排名、资金流向、龙头股表现。
+然后判断该股今日涨跌是板块系统性β（与板块同向且幅度接近）还是个股独立α（与板块相悖或幅度显著偏离）。
+结合板块近5日走势判断是阶段性见顶还是正常回调。如果实时数据为空，则从板块新闻推断。120-180字。
 
 ## 五、操作建议
 结合交易计划（入场{plan.get('entry', 0):.2f}/止损{plan.get('stop', 0):.2f}/止盈{plan.get('target', 0):.2f}/盈亏比1:{plan.get('rr_ratio', 0):.1f}），给出具体建议。
@@ -676,6 +681,15 @@ def main():
                     extra[key] = {}
         t_data = time.time() - t0
         print(f"✓ ({t_data:.0f}s)")
+
+        # 加载外部板块实时数据（由搜索Agent写入）
+        sector_ctx_path = "/tmp/sector_context.json"
+        if os.path.exists(sector_ctx_path):
+            try:
+                with open(sector_ctx_path) as f:
+                    extra["sector_context_json"] = json.dumps(json.load(f), ensure_ascii=False)
+            except Exception:
+                extra["sector_context_json"] = ""
 
         # Step 3: LLM深度分析
         print("  [3/3] DeepSeek深度分析...", end=" ", flush=True)

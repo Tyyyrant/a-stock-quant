@@ -548,7 +548,7 @@ def evaluate_trend_setup(df: pd.DataFrame) -> dict:
         if recent_signals:
             quality += 3
             result["signal_bar"] = recent_signals[-1]
-        if entries.get("best_type", "").startswith("high"):
+        if ((entries or {}).get("best_type") or "").startswith("high"):
             quality += 2
         if struct["structure"] == "trend_up" and struct.get("confidence", 0) > 0.5:
             quality += 2
@@ -578,7 +578,7 @@ def evaluate_trend_setup(df: pd.DataFrame) -> dict:
         if recent_signals:
             quality += 3
             result["signal_bar"] = recent_signals[-1]
-        if entries.get("best_type", "").startswith("low"):
+        if ((entries or {}).get("best_type") or "").startswith("low"):
             quality += 2
         if struct.get("confidence", 0) > 0.5:
             quality += 2
