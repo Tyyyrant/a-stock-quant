@@ -3,6 +3,7 @@
 九大战法信号识别器 — 《股是股非》全书体系
 
 1. 逼空星线: MACD强势 + 缩量星线洗盘 + 等次日大阳确认 (仅主板600/000)
+1b. 诱空蓄势星线: 前期强资+主动示弱向下+关键位止跌缩量蓄势+等突破确认 (全市场)
 2. 猎取B区: MA10首次金叉MA30趋势反转
 3. A区起涨: 量能MA7金叉MA35 + 逐日放量 + 价站翘MA10 (作者自定义"A区")
 4. 拉高抢筹: 量比>2 + 涨幅>4.5% + 收高位98% + 站MA5 + 均线多头 (仅主板600/000)
@@ -29,7 +30,7 @@ def detect_all_warfare(code: str, df: pd.DataFrame) -> dict:
     """
     if df.empty or len(df) < 60:
         return {k: {"triggered": False, "score": 0, "conditions": "数据不足"}
-                for k in ["逼空星线", "猎取B区", "A区起涨", "拉高抢筹"]}
+                for k in ["逼空星线", "诱空蓄势星线", "猎取B区", "A区起涨", "拉高抢筹"]}
 
     o = df["open"].values.astype(float)
     h = df["high"].values.astype(float)
@@ -120,6 +121,93 @@ def detect_all_warfare(code: str, df: pd.DataFrame) -> dict:
         "score": len(bsx_met),
         "detail": " | ".join(bsx_met) if bsx_met else "未触发",
         "wait_for": "次日放量阳线确认" if bsx_triggered else "",
+    }
+
+    # ================================================================
+    # 1b. 诱空蓄势星线 (《股是股非3》第一章 — 全市场适用)
+    # ================================================================
+    # 逻辑: 前期有强势资金进场(量价异动)→股价主动向下示弱→在关键位置
+    #        (前启动区/均线支撑)止跌→横向蓄势(≥3根星线)→缩量→突破确认
+    # 与逼空星线区别: 诱空=主动放低后蓄势(低比高更可怕); 逼空=站MA5强势横盘
+    yk_met = []; yk_miss = []
+
+    # 条件1: 前期有强资进场证据 (15-30日前有量价异动)
+    had_strong_capital = False
+    strong_days = 0
+    for i in range(-31, -10):
+        if abs(i) > n: break
+        chg_i = (c[i] / c[i-1] - 1) * 100 if c[i-1] > 0 else 0
+        vol_i = v[i]
+        if chg_i > 5 and vol_i > mv5[i] * 1.5:
+            had_strong_capital = True
+            strong_days = abs(i + 1)
+            break
+    if had_strong_capital:
+        yk_met.append(f"前{strong_days}日强势异动")
+    else:
+        yk_miss.append("前期缺乏强资证据(需30日内有5%↑+1.5x量)")
+
+    # 条件2: 股价有向下调整 (最近5-15日有过下跌)
+    price_dropped = False
+    for i in range(-2, -16, -1):
+        if abs(i) > n: break
+        if (c[i] / c[i-1] - 1) * 100 < -2.5:
+            price_dropped = True
+            break
+    if price_dropped:
+        yk_met.append("股价主动向下示弱")
+    else:
+        yk_miss.append("无主动向下调整")
+
+    # 条件3: 在关键位置止跌 (MA20/前低支撑)
+    at_support = (c[idx] > ma20[idx] * 0.93 and c[idx] < ma20[idx] * 1.05) or \
+                 (abs(c[idx] / c[idx-5] - 1) < 0.03 if idx >= 5 else False)
+    if at_support:
+        yk_met.append("关键位置止跌(MA20支撑)")
+    else:
+        yk_miss.append("未在关键支撑位")
+
+    # 条件4: 星线蓄势 (当前及近几根K线为星线)
+    amp_yk = (h[idx] - l[idx]) / c[idx] * 100 if c[idx] > 0 else 0
+    body_ratio_yk = abs(c[idx] - o[idx]) / max(h[idx] - l[idx], 0.001)
+    body_pct_yk = abs(c[idx] - o[idx]) / c[idx] * 100 if c[idx] > 0 else 0
+    is_star_yk = (body_ratio_yk < 0.4 or body_pct_yk < 1.5) and amp_yk > 1.8
+    star_count = 1 if is_star_yk else 0
+    for i in range(-2, -5, -1):
+        if abs(i) > n: break
+        b = abs(c[i] - o[i])
+        r = h[i] - l[i]
+        if r > 0 and (b / r) < 0.4:
+            star_count += 1
+    if star_count >= 2:
+        yk_met.append(f"星线蓄势({star_count}根)")
+    else:
+        yk_miss.append(f"蓄势星线不足(仅{star_count}根)")
+
+    # 条件5: 缩量 (成交量萎缩)
+    vol_shrinking = v[idx] < mv5[idx] * 0.85
+    if vol_shrinking:
+        yk_met.append("缩量蓄势")
+    else:
+        yk_miss.append("未缩量")
+
+    # 条件6: 月涨幅安全
+    if idx >= 20:
+        monthly_chg = (c[idx] / c[idx-20] - 1) * 100
+        monthly_ok_yk = monthly_chg < 40
+        (yk_met if monthly_ok_yk else yk_miss).append(f"月涨幅{monthly_chg:.0f}%")
+    else:
+        monthly_ok_yk = True
+
+    yk_triggered = had_strong_capital and price_dropped and at_support and \
+                   star_count >= 2 and vol_shrinking and monthly_ok_yk
+    result["诱空蓄势星线"] = {
+        "triggered": yk_triggered,
+        "conditions_met": yk_met,
+        "conditions_missed": yk_miss,
+        "score": len(yk_met),
+        "detail": " | ".join(yk_met) if yk_met else "未触发",
+        "wait_for": "突破平台+站上进攻线确认→B2→放量延续→B3重仓" if yk_triggered else "",
     }
 
     # ================================================================

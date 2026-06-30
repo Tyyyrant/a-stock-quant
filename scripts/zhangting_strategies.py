@@ -179,13 +179,14 @@ def classify_abc_zone(kline_df) -> dict:
 #   d) 地量后的倍量 — 地量(最低量)后次日2倍+
 
 def detect_volume_price_anomaly(kline_df) -> dict:
-    """检测量价异动信号"""
+    """检测量价异动信号 (V2: +再收集 +超常规短资)"""
     if len(kline_df) < 60:
         return {"has_anomaly": False, "type": "", "strength": 0}
 
     close = kline_df["close"].values
     vol = kline_df["volume"].values
     high = kline_df["high"].values
+    open_ = kline_df["open"].values
 
     price = close[-1]
     vol_today = vol[-1]
@@ -213,20 +214,46 @@ def detect_volume_price_anomaly(kline_df) -> dict:
     volume_burst = (vol_yesterday <= vol_min_20 * 1.1
                     and vol_today > vol_yesterday * 1.8)
 
-    if bottom_breakout:
-        return {"has_anomaly": True, "type": "底部放量突破MA20",
-                "strength": 7, "vol_ratio": round(vol_ratio, 1)}
-    elif breakout_high:
-        return {"has_anomaly": True, "type": "放量突破前高",
-                "strength": 6, "vol_ratio": round(vol_ratio, 1)}
-    elif volume_burst:
-        return {"has_anomaly": True, "type": "地量后倍量异动",
-                "strength": 5, "vol_ratio": round(vol_ratio, 1)}
-    elif pullback_hold:
-        return {"has_anomaly": True, "type": "缩量回踩不破MA20",
-                "strength": 4, "vol_ratio": round(vol_ratio, 1)}
+    # e) 再收集 (V2新增): 前期有洗盘→缩量→再放量收集
+    re_accumulation = False
+    # 条件: 前20日有过上升→有过缩量回调→现在放量回升
+    mid_price = np.mean(close[-41:-21])
+    had_rise = np.max(close[-41:-21]) > mid_price * 1.10  # 前期有10%+拉升
+    had_pullback = (np.min(vol[-31:-11]) < np.mean(vol[-41:-21]) * 0.5)  # 中期有缩量
+    now_volume_up = vol_ratio > 1.2 and close[-1] > close[-2]  # 现在放量回升
+    if had_rise and had_pullback and now_volume_up:
+        re_accumulation = True
 
-    return {"has_anomaly": False, "type": "", "strength": 0, "vol_ratio": round(vol_ratio, 1)}
+    # f) 超常规短资最后投入 (V2新增): 均线多头排列中突然冒出显著增加的阳量堆
+    last_capital = False
+    ma5 = np.mean(close[-5:])
+    ma10 = np.mean(close[-10:])
+    vol_burst_days = 0
+    for i in range(-1, -8, -1):
+        if vol[i] > vol_20 * 1.5 and close[i] > open_[i]:
+            vol_burst_days += 1
+    if ma5 > ma10 and vol_burst_days >= 2 and vol_ratio > 1.3:
+        last_capital = True
+
+    result = {"has_anomaly": False, "type": "", "strength": 0,
+              "vol_ratio": round(vol_ratio, 1),
+              "re_accumulation": re_accumulation,
+              "last_capital": last_capital}
+
+    if bottom_breakout:
+        result.update({"has_anomaly": True, "type": "底部放量突破MA20", "strength": 7})
+    elif breakout_high:
+        result.update({"has_anomaly": True, "type": "放量突破前高", "strength": 6})
+    elif volume_burst:
+        result.update({"has_anomaly": True, "type": "地量后倍量异动", "strength": 5})
+    elif pullback_hold:
+        result.update({"has_anomaly": True, "type": "缩量回踩不破MA20", "strength": 4})
+    elif last_capital and not result["has_anomaly"]:
+        result.update({"has_anomaly": True, "type": "超常规短资最后投入", "strength": 8})
+    elif re_accumulation and not result["has_anomaly"]:
+        result.update({"has_anomaly": True, "type": "主力再收集", "strength": 6})
+
+    return result
 
 
 def detect_ma_realignment(kline_df) -> dict:
@@ -283,13 +310,15 @@ def detect_ma_realignment(kline_df) -> dict:
 #   4. 处于A区或B区偏多
 
 def detect_washout_reversal(kline_df) -> dict:
-    """检测单日强硬洗盘后的反包信号"""
+    """检测单日强硬洗盘后的反包信号 (V2: +4种位置模式识别)"""
     if len(kline_df) < 20:
         return {"is_washout": False}
 
     close = kline_df["close"].values
     open_ = kline_df["open"].values
     vol = kline_df["volume"].values
+    high = kline_df["high"].values
+    low = kline_df["low"].values
 
     if len(close) < 3:
         return {"is_washout": False}
@@ -308,22 +337,68 @@ def detect_washout_reversal(kline_df) -> dict:
     # 三种洗盘模式
     is_yang = today_close > today_open
     full_engulf = today_close > prev_open
-    prev_high = kline_df["high"].values[-2]
+    prev_high_v = high[-2]
+    prev_low_v = low[-2]
     prev_body = abs(prev_close - prev_open)
-    prev_upper_shadow = prev_high - max(prev_open, prev_close)
+    prev_upper_shadow = prev_high_v - max(prev_open, prev_close)
     is_long_upper = prev_upper_shadow > prev_body * 1.5 and prev_upper_shadow > 0.02 * prev_close
-    is_big_vol = prev_vol > np.mean(kline_df["volume"].values[-20:]) * 1.5
-    prev_low = kline_df["low"].values[-2]
-    is_fake_yang = prev_close > prev_open and (prev_close - prev_low) < prev_body * 0.5
+    is_big_vol = prev_vol > np.mean(vol[-20:]) * 1.5
+    is_fake_yang = prev_close > prev_open and (prev_close - prev_low_v) < prev_body * 0.5
 
+    result = {"is_washout": False, "position_type": ""}
+
+    # ── 确定反包模式 ──
     if prev_chg < -4 and is_yang and full_engulf:
-        vc = today_vol > prev_vol; er = (today_close / prev_open - 1) * 100
-        return {"is_washout": True, "pattern": "大阴洗盘反包", "strength": round(5 + min(er * 2, 10) + (3 if vc else 0), 1), "engulf_pct": round(er, 1), "vol_confirm": vc}
+        vc = today_vol > prev_vol
+        er = (today_close / prev_open - 1) * 100
+        result.update({"is_washout": True, "pattern": "大阴洗盘反包",
+                       "strength": round(5 + min(er * 2, 10) + (3 if vc else 0), 1),
+                       "engulf_pct": round(er, 1), "vol_confirm": vc})
     elif is_long_upper and is_big_vol and is_yang and today_close > prev_close:
-        return {"is_washout": True, "pattern": "长上影洗盘反包", "strength": round(7 + (3 if today_vol > prev_vol else 0), 1), "engulf_pct": round((today_close / prev_close - 1) * 100, 1), "vol_confirm": today_vol > prev_vol}
-    elif is_fake_yang and is_big_vol and is_yang and today_close > prev_high:
-        return {"is_washout": True, "pattern": "黑太阳洗盘反包", "strength": round(8 + (3 if today_vol > prev_vol else 0), 1), "engulf_pct": round((today_close / prev_high - 1) * 100, 1), "vol_confirm": today_vol > prev_vol}
-    return {"is_washout": False}
+        result.update({"is_washout": True, "pattern": "长上影洗盘反包",
+                       "strength": round(7 + (3 if today_vol > prev_vol else 0), 1),
+                       "engulf_pct": round((today_close / prev_close - 1) * 100, 1),
+                       "vol_confirm": today_vol > prev_vol})
+    elif is_fake_yang and is_big_vol and is_yang and today_close > prev_high_v:
+        result.update({"is_washout": True, "pattern": "黑太阳洗盘反包",
+                       "strength": round(8 + (3 if today_vol > prev_vol else 0), 1),
+                       "engulf_pct": round((today_close / prev_high_v - 1) * 100, 1),
+                       "vol_confirm": today_vol > prev_vol})
+    else:
+        # 量价严重背离洗盘 (V2新增): 缩量大阴 + 次日阳反转
+        prev_vol_ratio = prev_vol / max(np.mean(vol[-21:-1]), 1)
+        if prev_chg < -3 and prev_vol_ratio < 0.7 and is_yang and today_close > prev_close:
+            result.update({"is_washout": True, "pattern": "量价背离强硬洗盘",
+                           "strength": 9,
+                           "engulf_pct": round((today_close / prev_close - 1) * 100, 1),
+                           "vol_confirm": True})
+        else:
+            return {"is_washout": False}
+
+    if not result["is_washout"]:
+        return {"is_washout": False}
+
+    # ── 位置模式判定 (V2新增) ──
+    price = close[-1]
+    ma5 = np.mean(close[-5:])
+    ma10 = np.mean(close[-10:])
+    ma20 = np.mean(close[-20:])
+    high_30 = np.max(high[-31:-1])
+
+    zone = classify_abc_zone(kline_df)["zone"]
+    if zone in ("A", "B"):
+        result["position_type"] = "强势A区B区洗盘"
+        result["strength"] = min(result["strength"] + 2, 10)
+    elif price > high_30 * 0.95:
+        result["position_type"] = "突破前高位置洗盘"
+        result["strength"] = min(result["strength"] + 1, 10)
+    elif abs(ma5 / ma10 - 1) < 0.02 and abs(ma10 / ma20 - 1) < 0.02:
+        result["position_type"] = "均线结点区洗盘"
+        result["strength"] = min(result["strength"] + 1, 10)
+    else:
+        result["position_type"] = "整理平台洗盘"
+
+    return result
 
 
 # ══════════════════════════════════════════════════════════════
@@ -382,11 +457,14 @@ def detect_gap_signal(kline_df) -> dict:
 
 def detect_distribution_signal(kline_df) -> dict:
     """
-    检测出货/见顶信号。
+    检测出货/见顶信号 (V2: +射击之星 +吊颈星线 +高位三星)。
 
     1. 高位倒灌: 高开→低走收阴，量放大 → 主力出货
     2. 阳奉阴违: 低开收阳但收盘<昨日收盘 → 表面强实则弱
     3. 放量滞涨: 量>1.5倍但涨幅<1% → 抛压沉重
+    4. 射击之星: 高位长上影小实体星线 → 见顶 (V2)
+    5. 吊颈星线: 高位长下影小实体星线 → 诱多见顶 (V2)
+    6. 高位三星: 同价位反复长上/下影星线+阴量 → 暴跌前奏 (V2)
     """
     if len(kline_df) < 60:
         return {"is_distribution": False}
@@ -394,13 +472,13 @@ def detect_distribution_signal(kline_df) -> dict:
     close = kline_df["close"].values
     open_ = kline_df["open"].values
     high = kline_df["high"].values
+    low = kline_df["low"].values
     vol = kline_df["volume"].values
 
     price = close[-1]
     high_60 = np.max(high[-60:])
     vol_20 = np.mean(vol[-21:-1])
     vol_ratio = vol[-1] / max(vol_20, 1)
-
     near_high = price > high_60 * 0.90
 
     result = {"is_distribution": False, "signals": []}
@@ -429,11 +507,339 @@ def detect_distribution_signal(kline_df) -> dict:
             "desc": f"涨幅微弱+量{vol_ratio:.1f}倍"
         })
 
+    # ── V2新增: 星线现顶信号 ──
+    body = abs(close[-1] - open_[-1])
+    range_ = high[-1] - low[-1]
+    upper_wick = high[-1] - max(close[-1], open_[-1])
+    lower_wick = min(close[-1], open_[-1]) - low[-1]
+    is_star = range_ > 0 and (body / range_) < 0.4
+
+    pos_pct = (price - np.min(low[-60:])) / max(high_60 - np.min(low[-60:]), 0.01)
+
+    if is_star and pos_pct > 0.80:
+        # 4. 射击之星(天针)
+        if upper_wick > body * 3 and upper_wick > lower_wick and range_ > price * 0.02:
+            result["is_distribution"] = True
+            result["signals"].append({
+                "type": "射击之星(天针)", "severity": "高",
+                "desc": f"高位长上影星线，上影/实体={upper_wick/max(body,0.01):.0f}x"
+            })
+
+        # 5. 吊颈星线
+        if lower_wick > body * 3 and lower_wick > upper_wick and range_ > price * 0.02:
+            result["is_distribution"] = True
+            result["signals"].append({
+                "type": "吊颈星线", "severity": "高",
+                "desc": f"高位长下影星线，收于高位有诱导性"
+            })
+
+    # 6. 高位三星顶部
+    star_count = 0
+    for i in range(-1, -min(12, len(close)), -1):
+        b = abs(close[i] - open_[i])
+        r = high[i] - low[i]
+        uw = high[i] - max(close[i], open_[i])
+        lw = min(close[i], open_[i]) - low[i]
+        if r > 0 and b / r < 0.4 and abs(close[i] - price) / price < 0.03:
+            if uw > b * 2 or lw > b * 2:
+                star_count += 1
+    yin_vol_count = sum(1 for i in range(-1, -min(12, len(close)), -1)
+                       if close[i] < open_[i] and vol[i] > vol_20)
+    if star_count >= 2 and pos_pct > 0.75 and yin_vol_count >= 1:
+        result["is_distribution"] = True
+        result["signals"].append({
+            "type": "高位三星顶部", "severity": "高",
+            "desc": f"同价区{star_count+1}根星线+阴量冒出→暴跌前奏"
+        })
+
+    # 天量阴线补充: 历史最大量+收阴
+    if vol[-1] > np.max(vol[:-1]) * 1.1 and close[-1] < open_[-1]:
+        result["is_distribution"] = True
+        result["signals"].append({
+            "type": "天量阴线", "severity": "高",
+            "desc": "历史最大量+收阴"
+        })
+
     return result
 
 
 # ══════════════════════════════════════════════════════════════
-# 策略 6: 量能体叠加评分 (第七章·资金安全护城河)
+# 策略 6: 三阳控三阴 (书2 — 成交量形态核心体系)
+# ══════════════════════════════════════════════════════════════
+#
+# 三种量形态:
+#   阳众阴寡 — 阳量多、阴量少 → 买盘主导
+#   阳放阴缩 — 阳线放量、阴线缩量 → 最健康
+#   阳聚阴散 — 阳量聚集堆积、阴量散乱 → 资金有组织
+
+def detect_three_yang_control(kline_df, lookback: int = 30) -> dict:
+    """
+    三阳控三阴检测。
+
+    Returns:
+        {pattern, score, yang_ratio, yang_vol_ratio, details}
+    """
+    if len(kline_df) < lookback:
+        return {"pattern": "unknown", "score": 0, "reason": "数据不足"}
+
+    close = kline_df["close"].values[-lookback:]
+    open_ = kline_df["open"].values[-lookback:]
+    vol = kline_df["volume"].values[-lookback:]
+
+    # 统计阳线/阴线
+    is_yang = close > open_
+    yang_count = np.sum(is_yang)
+    yin_count = lookback - yang_count
+    yang_ratio = yang_count / lookback
+
+    # 阳量 vs 阴量 均值
+    yang_vol = np.mean(vol[is_yang]) if yang_count > 0 else 0
+    yin_vol = np.mean(vol[~is_yang]) if yin_count > 0 else 1
+    yang_vol_ratio = yang_vol / max(yin_vol, 1)
+
+    # 阳量标准差 (判断是否聚集)
+    yang_vol_std = np.std(vol[is_yang]) if yang_count > 2 else 0
+    yin_vol_std = np.std(vol[~is_yang]) if yin_count > 2 else 0
+
+    score = 0
+    patterns = []
+    details = {"yang_count": int(yang_count), "yin_count": int(yin_count),
+               "yang_ratio": round(yang_ratio, 2), "yang_vol_ratio": round(yang_vol_ratio, 2)}
+
+    # 1. 阳众阴寡 (阳线数量占优)
+    if yang_ratio >= 0.55:
+        score += 2
+        patterns.append("阳众阴寡")
+        details["zhong"] = f"阳线{yang_ratio:.0%}"
+
+    # 2. 阳放阴缩 (阳线放量、阴线缩量)
+    if yang_vol_ratio > 1.2:
+        score += 3
+        patterns.append("阳放阴缩")
+        details["fang"] = f"阳量/阴量={yang_vol_ratio:.1f}x"
+
+    # 3. 阳聚阴散 (阳量集中、阴量分散)
+    if yang_vol_std > yin_vol_std * 1.3 and yang_count >= 3:
+        score += 2
+        patterns.append("阳聚阴散")
+        details["ju"] = f"阳量std={yang_vol_std:.0f} vs 阴量std={yin_vol_std:.0f}"
+
+    # 综合判断
+    pattern_name = "+".join(patterns) if patterns else "量形态混乱"
+    if score >= 5:
+        grade = "完美三阳控三阴"
+    elif score >= 3:
+        grade = "偏多量形态"
+    elif score >= 1:
+        grade = "弱偏多量形态"
+    else:
+        grade = "量形态偏弱"
+
+    return {
+        "pattern": pattern_name,
+        "score": score,
+        "grade": grade,
+        "details": details,
+    }
+
+
+# ══════════════════════════════════════════════════════════════
+# 策略 7: 星线全体系分类 (书3 核心扩展)
+# ══════════════════════════════════════════════════════════════
+#
+# 四大类:
+#   调整星线: 缓冲星线、震荡星线、巨星
+#   止跌星线: 同步止跌、背离止跌
+#   蓄势星线: 诱空蓄势、平台蓄势
+#   现顶星线: 射击之星(天针)、吊颈星线、高位三星
+
+def classify_star_pattern(kline_df, lookback: int = 10) -> dict:
+    """
+    星线全体系分类。
+
+    Returns:
+        {star_type, sub_type, direction, confidence, signals}
+    """
+    if len(kline_df) < 30:
+        return {"star_type": "unknown", "sub_type": "", "direction": "neutral", "confidence": 0}
+
+    close = kline_df["close"].values
+    open_ = kline_df["open"].values
+    high = kline_df["high"].values
+    low = kline_df["low"].values
+    vol = kline_df["volume"].values
+
+    price = close[-1]
+    body = abs(close[-1] - open_[-1])
+    range_ = high[-1] - low[-1]
+    upper_wick = high[-1] - max(close[-1], open_[-1])
+    lower_wick = min(close[-1], open_[-1]) - low[-1]
+
+    # 是否星线: 实体/振幅 < 0.4
+    is_star = range_ > 0 and (body / range_) < 0.4 and range_ > 0
+    if not is_star:
+        # 宽松条件: 振幅>1.8% 且 实体/收盘<1.5%
+        body_pct = body / price * 100 if price > 0 else 0
+        range_pct = range_ / price * 100 if price > 0 else 0
+        is_star = range_pct > 1.8 and body_pct < 1.5
+
+    if not is_star:
+        return {"star_type": "非星线", "sub_type": "", "direction": "neutral", "confidence": 0}
+
+    ma5 = np.mean(close[-5:])
+    ma10 = np.mean(close[-10:])
+    ma20 = np.mean(close[-20:]) if len(close) >= 20 else ma10
+    ma60 = np.mean(close[-60:]) if len(close) >= 60 else ma20
+    vol_5 = np.mean(vol[-6:-1])
+    vol_ratio = vol[-1] / max(vol_5, 1)
+
+    high_60 = np.max(high[-60:]) if len(high) >= 60 else price * 1.5
+    low_60 = np.min(low[-60:]) if len(low) >= 60 else price * 0.5
+    pos_pct = (price - low_60) / max(high_60 - low_60, 0.01)
+
+    # 前5天趋势
+    prev_5_chg = (close[-6] / close[-11] - 1) * 100 if len(close) >= 11 else 0
+
+    signals = []
+    star_type = "unknown"
+    sub_type = ""
+    direction = "neutral"
+    confidence = 0
+
+    # ── 1. 现顶星线 (优先级最高——高位风险) ──
+    if pos_pct > 0.80:
+        # 射击之星(天针): 长上影+小实体+高位
+        if upper_wick > body * 3 and upper_wick > lower_wick * 2 and range_ > price * 0.03:
+            star_type = "现顶星线"
+            sub_type = "射击之星(天针)"
+            direction = "bearish"
+            confidence = 0.8 if vol_ratio > 1.2 else 0.6
+            signals.append(f"高位长上影天针(上影/实体={upper_wick/max(body,0.01):.0f}x)")
+
+        # 吊颈星线: 长下影+小实体+高位+收高位
+        elif lower_wick > body * 3 and lower_wick > upper_wick * 2 and range_ > price * 0.03:
+            star_type = "现顶星线"
+            sub_type = "吊颈星线"
+            direction = "bearish"
+            confidence = 0.7 if vol_ratio > 1.0 else 0.5
+            signals.append(f"高位吊颈(下影/实体={lower_wick/max(body,0.01):.0f}x)")
+
+    # 高位三星 (看过去是否同价位反复出现长上影或长下影)
+    star_count_high = 0
+    for i in range(-1, -min(lookback + 1, len(close)), -1):
+        if i == -1:
+            continue  # skip current
+        b = abs(close[i] - open_[i])
+        r = high[i] - low[i]
+        uw = high[i] - max(close[i], open_[i])
+        lw = min(close[i], open_[i]) - low[i]
+        if r > 0 and b / r < 0.4 and abs(close[i] - price) / price < 0.03:
+            if uw > b * 2 or lw > b * 2:
+                star_count_high += 1
+    if star_count_high >= 2 and pos_pct > 0.75:
+        star_type = "现顶星线"
+        sub_type = "高位三星顶部"
+        direction = "bearish"
+        confidence = 0.85
+        signals.append(f"同一价区{star_count_high+1}根星线→暴跌前奏")
+
+    # ── 2. 蓄势星线 ──
+    if star_type == "unknown" and pos_pct > 0.20 and pos_pct < 0.80:
+        # 诱空蓄势: 前期有强势异动+股价主动向下+在关键位置止跌+横向蓄势
+        had_strong = False
+        for i in range(-11, -2):
+            chg_i = (close[i] / close[i-1] - 1) * 100
+            if chg_i > 5 or (vol[i] > np.mean(vol[-20:]) * 1.8 and close[i] > open_[i]):
+                had_strong = True
+                break
+
+        if had_strong and prev_5_chg < -3 and price > ma20:
+            star_type = "蓄势星线"
+            sub_type = "诱空蓄势星线"
+            direction = "bullish_pending"
+            confidence = 0.55
+            signals.append("前期强资+主动向下+关键位止跌蓄势")
+
+        # 平台蓄势: 均线上方横盘、星线排列
+        elif price > ma10 and abs(prev_5_chg) < 2 and vol_ratio < 0.8:
+            star_type = "蓄势星线"
+            sub_type = "平台蓄势星线"
+            direction = "bullish_pending"
+            confidence = 0.5
+            signals.append("MA上方横盘蓄势缩量")
+
+    # ── 3. 止跌星线 ──
+    if star_type == "unknown" and pos_pct < 0.40:
+        vol_shrinking = vol_ratio < 0.7
+
+        if vol_shrinking:
+            # 同步止跌: K线收敛 + 量能同步收敛
+            star_type = "止跌星线"
+            sub_type = "同步止跌星线"
+            direction = "bullish"
+            confidence = 0.5
+            signals.append("量价同步收敛止跌")
+        else:
+            # 背离止跌: K线收敛但量能暗流涌动
+            star_type = "止跌星线"
+            sub_type = "背离止跌星线"
+            direction = "bullish"
+            confidence = 0.65
+            signals.append("价缩量不缩→主力暗中吸筹")
+
+    # ── 4. 调整星线 ──
+    if star_type == "unknown":
+        if range_ > price * 0.05 and vol_ratio > 1.2:
+            star_type = "调整星线"
+            sub_type = "巨星(剧烈博弈)"
+            direction = "bullish_pending"
+            confidence = 0.55
+            signals.append("巨量宽幅震荡→大行情前兆")
+        elif range_ > price * 0.03 and vol_ratio > 0.9:
+            star_type = "调整星线"
+            sub_type = "震荡星线"
+            direction = "neutral"
+            confidence = 0.4
+            signals.append("宽幅震荡洗盘")
+        else:
+            star_type = "调整星线"
+            sub_type = "缓冲星线"
+            direction = "bullish_pending"
+            confidence = 0.45
+            signals.append("动量后缓冲蓄力")
+
+    # 弱势现顶补充: 偏离EMA20过大(>25%)的小星线=警惕
+    if star_type == "unknown" and (price / ma20 - 1) * 100 > 25:
+        star_type = "现顶星线"
+        sub_type = "高位停滞星线"
+        direction = "bearish"
+        confidence = 0.5
+        signals.append(f"偏离MA20 {(price/ma20-1)*100:.0f}%的星线")
+
+    if star_type == "unknown":
+        star_type = "普通星线"
+        sub_type = ""
+        direction = "neutral"
+        confidence = 0.2
+
+    return {
+        "star_type": star_type,
+        "sub_type": sub_type,
+        "direction": direction,
+        "confidence": round(confidence, 2),
+        "is_star": True,
+        "body_pct": round(body / price * 100, 2) if price > 0 else 0,
+        "range_pct": round(range_ / price * 100, 2) if price > 0 else 0,
+        "upper_wick_ratio": round(upper_wick / max(body, 0.01), 1),
+        "lower_wick_ratio": round(lower_wick / max(body, 0.01), 1),
+        "vol_ratio": round(vol_ratio, 2),
+        "pos_pct": round(pos_pct * 100),
+        "signals": signals,
+    }
+
+
+# ══════════════════════════════════════════════════════════════
+# 策略 8: 量能体叠加评分 (书2 — 多重共振)
 # ══════════════════════════════════════════════════════════════
 #
 # "单打独斗的信号不可靠，多重共振才安全"
@@ -442,7 +848,7 @@ def detect_distribution_signal(kline_df) -> dict:
 
 def score_signal_resonance(kline_df, existing_signals: dict = None) -> dict:
     """
-    多信号共振评分 — 量能体叠加。
+    多信号共振评分 — 量能体叠加 (V2 升级版)。
 
     Args:
         kline_df: K线数据
@@ -474,6 +880,14 @@ def score_signal_resonance(kline_df, existing_signals: dict = None) -> dict:
         bonus = anomaly["strength"]
         total += bonus
         signals.append(f"量价异动:{anomaly['type']}(+{bonus})")
+        # 再收集信号
+        if anomaly.get("re_accumulation"):
+            total += 4
+            signals.append("再收集(+4)")
+        # 超常规短资
+        if anomaly.get("last_capital"):
+            total += 5
+            signals.append("超常规短资(+5)")
 
     # 3. 均线归位
     ma_re = detect_ma_realignment(kline_df)
@@ -486,7 +900,8 @@ def score_signal_resonance(kline_df, existing_signals: dict = None) -> dict:
     if washout["is_washout"]:
         bonus = int(washout["strength"])
         total += bonus
-        signals.append(f"洗盘反包(强度{bonus})")
+        pos_label = washout.get("position_type", "")
+        signals.append(f"洗盘反包[{pos_label}](强度{bonus})")
 
     # 5. 缺口
     gap = detect_gap_signal(kline_df)
@@ -506,7 +921,35 @@ def score_signal_resonance(kline_df, existing_signals: dict = None) -> dict:
             total -= penalty
             signals.append(f"⚠{s['type']}(-{penalty})")
 
-    # 7. 叠加已有信号
+    # 7. 三阳控三阴 (V2新增)
+    tyc = detect_three_yang_control(kline_df)
+    if tyc["score"] >= 3:
+        total += tyc["score"]
+        signals.append(f"三阳控三阴:{tyc['grade']}(+{tyc['score']})")
+
+    # 8. 星线信号 (V2新增)
+    star = classify_star_pattern(kline_df)
+    if star["star_type"] != "非星线" and star["star_type"] != "普通星线":
+        if star["direction"] == "bearish":
+            total -= int(star["confidence"] * 8)
+            signals.append(f"⚠{star['sub_type']}(-{int(star['confidence']*8)})")
+        elif star["direction"] == "bullish":
+            total += int(star["confidence"] * 5)
+            signals.append(f"{star['sub_type']}(+{int(star['confidence']*5)})")
+        elif star["direction"] == "bullish_pending":
+            total += int(star["confidence"] * 3)
+            signals.append(f"{star['sub_type']}[待确认](+{int(star['confidence']*3)})")
+
+    # 9. 底部积累 (V2新增)
+    vol_acc = detect_volume_accumulation(kline_df)
+    if vol_acc.get("giant_yang") and vol_acc.get("giant_yang", {}).get("detected"):
+        total += 4
+        signals.append("巨量阳线识底(+4)")
+    if vol_acc.get("yinyang_embrace") and vol_acc.get("yinyang_embrace", {}).get("detected"):
+        total += 3
+        signals.append("阴阳合抱见底(+3)")
+
+    # 10. 叠加已有信号
     if existing_signals:
         for sig_name, sig_score in existing_signals.items():
             total += sig_score
@@ -540,7 +983,7 @@ def score_signal_resonance(kline_df, existing_signals: dict = None) -> dict:
 
 def detect_volume_accumulation(kline_df) -> dict:
     """
-    三度之"厚度" — 量形态的高度·宽度·密集度 × 位置系数
+    三度之"厚度" — 量形态的高度·宽度·密集度 × 位置系数 (V2: +巨量阳线识底 +阴阳合抱)
 
     原著定义: 厚度 = 量形态之高度、宽度、密集度
     关键前提: 低位堆量=收集(加分)，高位堆量=出货(警惕)
@@ -597,12 +1040,59 @@ def detect_volume_accumulation(kline_df) -> dict:
     rs.append(f"{pos_label}×{pos_coef}")
     if acc: rs.append("量能加速")
 
+    # ── V2新增: 巨量阳线识底 ──
+    giant_yang = {"detected": False, "position": "", "days_ago": 0}
+    v_60 = np.mean(v[-61:-1])
+    for i in range(-1, -min(15, len(c)), -1):
+        chg_i = (c[i] / c[i-1] - 1) * 100
+        if v[i] > v_60 * 3 and c[i] > o[i] and chg_i > 3:
+            giant_yang = {
+                "detected": True,
+                "position": "低位巨量阳线" if pos_pct < 0.35 else "中位放量阳线",
+                "days_ago": abs(i + 1),
+                "vol_ratio": round(v[i] / v_60, 1),
+                "chg_pct": round(chg_i, 1),
+            }
+            # 巨量后是否缩量蓄势? (观察价值)
+            if abs(i + 1) > 1:
+                post_vol = np.mean(v[i+1:-1])
+                if post_vol < v[i] * 0.3:
+                    giant_yang["post_shrink"] = True
+                    giant_yang["position"] = "巨量+缩量蓄势完成"
+            break
+
+    # ── V2新增: 阴阳合抱见底 ──
+    yinyang_embrace = {"detected": False, "strength": 0}
+    for i in range(-3, -min(10, len(c)), -1):
+        # 前日大阴
+        prev_big_bear = (c[i-1] < o[i-1]
+                        and abs(c[i-1] / c[i-2] - 1) * 100 > 4
+                        and v[i-1] > np.mean(v[-20:]) * 1.2)
+        # 今日大阳反包
+        today_big_bull = (c[i] > o[i]
+                         and c[i] > o[i-1]  # 收盘超过前阴开盘 = 完全反包
+                         and v[i] > v[i-1] * 0.8)  # 量能确认
+        if prev_big_bear and today_big_bull:
+            embrace_pos = (c[i] - low_60) / max(high_60 - low_60, 0.01)
+            if embrace_pos < 0.40:  # 低位阴阳合抱
+                yinyang_embrace = {
+                    "detected": True,
+                    "strength": round(5 + (1 - embrace_pos) * 3, 1),
+                    "days_ago": abs(i),
+                    "position": "低位阴阳合抱见底",
+                    "bearish_day": abs(i-1),
+                    "bullish_day": abs(i),
+                }
+                break
+
     return {
         "has_thickness": final >= 3, "score": final,
         "raw_score": raw, "position_coef": pos_coef, "position_pct": round(pos_pct*100),
         "height": score_h, "width": score_w, "density": score_d,
         "reasons": rs, "tall_bars": tb, "wide_days": wd,
         "streak": streak, "yang_ratio": round(yr, 2),
+        "giant_yang": giant_yang,  # V2
+        "yinyang_embrace": yinyang_embrace,  # V2
     }
 
 
