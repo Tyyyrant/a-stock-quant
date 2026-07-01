@@ -234,6 +234,42 @@ causal_notes = ''.join(
     for s in bn_picks if s.get('causal_line','') and '瓶颈材料' not in s.get('causal_line','')
 )
 
+# ====== 动态昨日验证 ======
+from datetime import datetime, timedelta
+_report_dt = datetime.strptime(date, "%Y-%m-%d")
+_yesterday_str = (_report_dt - timedelta(days=1)).strftime("%Y-%m-%d")
+_yesterday_csv = os.path.join(ROOT, "output", _yesterday_str, "trade_recommendations.csv")
+_bt_up, _bt_total, _bt_lu, _bt_avg = 0, 0, 0, 0.0
+_bt_detail = ""
+if os.path.exists(_yesterday_csv):
+	try:
+		_ydf = pd.read_csv(_yesterday_csv)
+		_ydf['code'] = _ydf['code'].astype(str).str.zfill(6)
+		_ydf = _ydf[~_ydf['name'].str.contains('ST', na=False)]
+		_ydf = _ydf.head(min(10, len(_ydf)))
+		_bt_gains, _bt_tops, _bt_flops = [], [], []
+		for _, _row in _ydf.iterrows():
+			_c = str(_row['code']).zfill(6)
+			_m = 1 if _c.startswith('6') else 0
+			try:
+				_dk = get_stock_kline(_c, _m, refresh=False)
+				if _dk is not None and len(_dk) >= 2:
+					_dk = _dk[_dk['date'] <= date]
+					if len(_dk) >= 2:
+						_chg = (float(_dk['close'].values[-1]) / float(_dk['close'].values[-2]) - 1) * 100
+						_bt_gains.append(_chg)
+						_nm = str(_row.get('name', _c))
+						(_bt_tops if _chg > 0 else _bt_flops).append(f"{_nm} {_chg:+.1f}%")
+			except: pass
+		if _bt_gains:
+			_bt_total = len(_bt_gains)
+			_bt_up = sum(1 for g in _bt_gains if g > 0)
+			_bt_lu = sum(1 for g in _bt_gains if g > 9.5)
+			_bt_avg = np.mean(_bt_gains)
+			_bt_detail = '🏆 ' + ' · '.join(_bt_tops[:5])
+			if _bt_flops: _bt_detail += '<br>🔴 ' + ' · '.join(_bt_flops[:3])
+	except: pass
+
 html = f'''<!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8"><style>
 :root{{--bg:#f0f2f5;--card:#fff;--text:#1a1a2e;--muted:#8b8fa3;--border:#e8eaef;--up:#d4343e;--down:#1ca051;--t1:#e87400;--t2:#7c3aed;--t3:#b45309;--t4:#2563eb}}
 *{{margin:0;padding:0;box-sizing:border-box}}
@@ -386,19 +422,16 @@ for i, (_, row) in enumerate(df_top.iterrows()):
 <div class="stock-code">{code}</div>
 <div class="reason">{reason}</div>
 </div>\n'''
-html += '''</div>
+html += f'''</div>
 
 <!-- ====== BACKTEST ====== -->
 <div class="backtest">
-<h3>📋 昨日(6.17)推荐验证</h3>
+<h3>📋 昨日({_yesterday_str})推荐验证</h3>
 <div class="stats">
-<div class="stat"><div class="big" style="color:var(--up)">7/9</div><div class="lab">上涨率</div></div>
-<div class="stat"><div class="big" style="color:var(--up)">4只</div><div class="lab">涨停</div></div>
-<div class="stat"><div class="big" style="color:var(--up)">+8.4%</div><div class="lab">平均涨幅</div></div>
-<div class="stat" style="flex:1;font-size:10px;color:var(--muted);text-align:left;padding-left:16px;border-left:1px solid var(--border);min-width:200px">
-🏆 世名科技 +20% · 太极实业 +10% · 和远气体 +10% · 领先股份 +10% · 北京君正 +8.4%<br>
-🔴 莱宝高科 -4.8% · 旷达科技 -0.3%
-</div>
+<div class="stat"><div class="big" style="color:var(--up)">{_bt_up}/{_bt_total}</div><div class="lab">上涨率</div></div>
+<div class="stat"><div class="big" style="color:var(--up)">{_bt_lu}只</div><div class="lab">涨停</div></div>
+<div class="stat"><div class="big" style="color:var(--up)">{_bt_avg:+.1f}%</div><div class="lab">平均涨幅</div></div>
+<div class="stat" style="flex:1;font-size:10px;color:var(--muted);text-align:left;padding-left:16px;border-left:1px solid var(--border);min-width:200px">{_bt_detail}</div>
 </div>
 </div>
 
