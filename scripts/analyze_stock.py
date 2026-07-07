@@ -69,7 +69,10 @@ def analyze_stock(code: str, target_date: str = None, with_agent: bool = False) 
         q = tencent_quote([code])
         if code in q:
             name = q[code].get("name", code)
-            pe = q[code].get("pe_ttm", 0) or 0
+            pe_ttm = q[code].get("pe_ttm", 0) or 0
+            pe_static = q[code].get("pe_static", 0) or 0
+            # TTM可能被单季亏损拖成负数，此时用静态PE
+            pe = pe_ttm if pe_ttm > 0 else (pe_static if pe_static > 0 else pe_ttm)
             mcap = q[code].get("mcap_yi", 0) or 0
     except Exception:
         pass
