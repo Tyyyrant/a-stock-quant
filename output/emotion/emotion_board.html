@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>情绪周期盘面 · 连板网式</title>
+<style>
+  :root{
+    --bg:#ffffff; --panel:#ffffff; --panel2:#f5f6f8; --border:#e3e6ea;
+    --txt:#1a1a1a; --sub:#5f6b7a; --dim:#8a94a6;
+    --c冰点:#5b8ff9; --c修复:#5ad8a6; --c升温:#f6bd16; --c高潮:#ff6b6b; --c降温:#9270ca; --c退潮:#3d5a80;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;padding:24px;line-height:1.5}
+  .wrap{max-width:1180px;margin:0 auto}
+  header{display:flex;align-items:baseline;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+  header h1{font-size:22px;font-weight:700}
+  header .date{color:var(--sub);font-size:14px}
+  header .universe{color:var(--dim);font-size:12px;margin-left:auto}
+  .phase-badge{font-size:16px;font-weight:700;padding:4px 14px;border-radius:20px;color:#0b0f17}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:860px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px}
+  .card h2{font-size:13px;color:var(--sub);font-weight:600;margin-bottom:12px;letter-spacing:1px}
+  .card h2 .tag{color:var(--dim);font-weight:400;margin-left:6px}
+
+  /* 温度计 */
+  .temp-big{display:flex;align-items:baseline;gap:10px}
+  .temp-num{font-size:56px;font-weight:800;font-variant-numeric:tabular-nums}
+  .temp-unit{color:var(--sub);font-size:18px}
+  .thermo{height:14px;border-radius:7px;background:var(--panel2);border:1px solid var(--border);margin-top:14px;overflow:hidden;position:relative}
+  .thermo .fill{height:100%;border-radius:7px;transition:width .4s}
+  .thermo .ticks{position:absolute;inset:0;display:flex}
+  .thermo .ticks span{flex:1;border-right:1px solid rgba(255,255,255,.06)}
+  .temp-label{display:flex;justify-content:space-between;color:var(--dim);font-size:11px;margin-top:6px}
+
+  /* 梯队 */
+  .ladder{display:flex;gap:8px;margin-bottom:14px}
+  .ladder .step{flex:1;background:var(--panel2);border:1px solid var(--border);border-radius:8px;text-align:center;padding:10px 4px;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+  .ladder .step:hover{border-color:var(--sub)}
+  .ladder .step .n{font-size:20px;font-weight:800}
+  .ladder .step .lb{font-size:11px;color:var(--sub);margin-top:2px}
+  .ladder .step.hot{border-color:var(--c高潮);box-shadow:0 0 0 1px var(--c高潮) inset}
+  .ladder .step.sel{background:var(--panel);border-color:var(--txt);box-shadow:0 0 0 1.5px var(--txt) inset}
+
+  .leaders{max-height:230px;overflow:auto}
+  .leaders table{width:100%;border-collapse:collapse;font-size:13px}
+  .leaders th{color:var(--dim);font-weight:500;text-align:left;padding:4px 6px;position:sticky;top:0;background:var(--panel)}
+  .leaders th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
+  .leaders th.sortable:hover{color:var(--txt)}
+  .leaders th.on{color:var(--txt);font-weight:600}
+  .leaders td{padding:5px 6px;border-top:1px solid var(--border)}
+  .leaders .b{display:inline-block;min-width:20px;text-align:center;padding:1px 6px;border-radius:4px;font-weight:700;font-size:12px}
+  .ptype{display:inline-block;font-size:11px;padding:0 4px;border-radius:3px;margin-left:4px;font-weight:600;line-height:1.5;vertical-align:middle}
+  .ind{color:#ff1744;font-size:11px;margin-left:4px;font-weight:600}
+
+  /* 指标面板 */
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  @media(max-width:600px){.metrics{grid-template-columns:repeat(2,1fr)}}
+  .metric{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px}
+  .metric .v{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+  .metric .k{font-size:11px;color:var(--sub);margin-top:2px}
+  .metric.up .v{color:#d93025} .metric.dn .v{color:#16a34a}
+  .adv-row{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+  .adv-row b{color:var(--txt);font-variant-numeric:tabular-nums}
+
+  /* 曲线 */
+  .chart{width:100%}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--sub);margin-top:10px}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+  .tooltip{position:fixed;background:#fff;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;pointer-events:none;display:none;z-index:10;box-shadow:0 4px 14px rgba(0,0,0,.12)}
+
+  /* 行业分布 */
+  .sectors{display:flex;flex-direction:column;gap:6px;max-height:320px;overflow:auto}
+  .sector{display:flex;align-items:center;gap:10px}
+  .sector .sn{font-size:13px;width:5em;flex:none;text-align:right;color:var(--txt)}
+  .sector .track{flex:1;height:12px;background:var(--panel2);border-radius:6px;overflow:hidden}
+  .sector .fill{height:100%;background:linear-gradient(90deg,#f6bd16,#ff6b6b);border-radius:6px;transition:width .3s}
+  .sector .sc{font-size:13px;font-weight:700;width:2em;flex:none;font-variant-numeric:tabular-nums}
+
+  /* 连板晋级 */
+  .promotion{display:flex;flex-direction:column;gap:12px;max-height:360px;overflow:auto}
+  .promo-group{padding-bottom:10px;border-bottom:1px solid var(--border)}
+  .promo-group:last-child{border-bottom:none;padding-bottom:0}
+  .promo-head{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
+  .promo-head .lb{font-size:13px;font-weight:700}
+  .promo-head .stat{font-size:12px;color:var(--sub)}
+  .promo-body{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:2px 8px;border-radius:12px;background:var(--panel2);border:1px solid var(--border);color:var(--txt)}
+  .chip.jin{background:#fdecea;border-color:#f5c6cb;color:#d93025;font-weight:600}
+  .chip.duan{color:var(--sub)}
+  .chip .c{color:var(--dim);font-size:11px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>情绪周期盘面</h1>
+    <span class="date" id="hdr-date"></span>
+    <span class="phase-badge" id="hdr-phase"></span>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <h2>情绪温度</h2>
+      <div class="temp-big"><span class="temp-num" id="temp-num">--</span><span class="temp-unit">° / 100</span></div>
+      <div class="thermo"><div class="fill" id="thermo-fill"></div><div class="ticks"><span></span><span></span><span></span><span></span><span></span></div></div>
+      <div class="temp-label"><span>冰点 0</span><span>修复 35</span><span>升温 60</span><span>高潮 80</span><span>100</span></div>
+    </div>
+
+    <div class="card">
+      <h2>连板梯队 <span class="tag">点击梯队数字筛选对应股票</span></h2>
+      <div class="ladder" id="ladder"></div>
+      <div class="leaders"><table id="leaders"></table></div>
+    </div>
+
+    <div class="card" style="grid-column:1/-1">
+      <h2>今日指标 <span class="tag" id="m-date"></span></h2>
+      <div class="metrics" id="metrics"></div>
+      <div class="adv-row" id="advance"></div>
+    </div>
+
+    <div class="card" style="grid-column:1/-1">
+      <h2>连板晋级 <span class="tag">昨日涨停 → 今日表现</span></h2>
+      <div class="promotion" id="promotion"></div>
+    </div>
+
+    <div class="card" style="grid-column:1/-1">
+      <h2>今日涨停 · 行业分布 <span class="tag">按涨停家数降序</span></h2>
+      <div class="sectors" id="sectors"></div>
+    </div>
+
+    <div class="card" style="grid-column:1/-1;position:relative">
+      <h2>情绪温度走势 <span class="tag">近 60 个交易日 · 颜色=当日阶段</span></h2>
+      <svg class="chart" id="chart"></svg>
+      <div class="legend" id="legend"></div>
+    </div>
+  </div>
+</div>
+<div class="tooltip" id="tip"></div>
+
+<script src="emotion_data.js"></script>
+<script>
+const D = window.EMOTION_DATA;
+const PHASE_COLOR = {冰点:'#5b8ff9',修复:'#5ad8a6',升温:'#f6bd16',高潮:'#ff6b6b',降温:'#9270ca',退潮:'#3d5a80'};
+const PHASE_ORDER = ['冰点','修复','升温','高潮','降温','退潮'];
+
+function phaseColor(p){return PHASE_COLOR[p]||'#888'}
+function textColor(hex){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return (0.299*r+0.587*g+0.114*b)>150?'#1a1a1a':'#fff'}
+function fmtFund(v){if(v==null||v===''||v==='-')return'—';if(v>=1e8)return(v/1e8).toFixed(2).replace(/\.?0+$/,'')+'亿';if(v>=1e4)return(v/1e4).toFixed(1).replace(/\.0$/,'')+'万';return v+'元'}
+function fmtSeal(l){if(!l.lbt)return'—';const mm=t=>t.slice(0,5).replace(/^0/,'');return(l.fbt&&l.fbt!==l.lbt)?(mm(l.fbt)+'→'+mm(l.lbt)):mm(l.lbt)}
+const PTYPE_COLOR = {一字板:'#d93025', T字板:'#e8700a', 回封板:'#722ed1', 换手板:'#8a94a6'};
+function ptypeText(l){const p=l.ptype||'换手板',z=l.zbc;const base=p.replace('板','');return((p==='回封板'||p==='T字板')&&z>0)?(base+'·炸'+z):base}
+
+// header
+const latest = D.latest;
+document.getElementById('hdr-date').textContent = latest.date;
+const pb = document.getElementById('hdr-phase');
+pb.textContent = latest.phase + '期';
+pb.style.background = phaseColor(latest.phase); pb.style.color = textColor(phaseColor(latest.phase));
+
+// 温度
+document.getElementById('temp-num').textContent = latest.temp;
+document.getElementById('temp-num').style.color = '#1a1a1a';
+const fill = document.getElementById('thermo-fill');
+fill.style.width = latest.temp + '%';
+fill.style.background = 'linear-gradient(90deg,#5b8ff9,#5ad8a6,#f6bd16,#ff6b6b)';
+
+// 梯队 + 龙头表
+const ladderEl = document.getElementById('ladder');
+const leadEl = document.getElementById('leaders');
+const ladder = latest.ladder;
+const maxB = latest.max_board;
+const allStocks = latest.limit_up_stocks || latest.leaders || [];
+let selBoard = null;
+let sortKey = 'board', sortDir = 'desc';
+
+function sortVal(l, key){
+  if(key==='seal') return l.lbt || null;
+  if(key==='fund') return (l.fund==null||l.fund==='')? null : l.fund;
+  if(key==='zbc') return (l.zbc==null)? null : l.zbc;
+  if(key==='board') return l.board;
+  if(key==='close') return l.close;
+  return null;
+}
+
+function renderLeaders(board){
+  const ph = phaseColor(latest.phase), tc = textColor(ph);
+  let list = board==null ? (latest.leaders||[]) : allStocks.filter(s=>s.board===board);
+  list = list.slice().sort((a,b)=>{
+    const va=sortVal(a,sortKey), vb=sortVal(b,sortKey);
+    if(va==null && vb==null) return 0;
+    if(va==null) return 1;
+    if(vb==null) return -1;
+    const c = va<vb ? -1 : (va>vb ? 1 : 0);
+    return sortDir==='desc' ? -c : c;
+  });
+
+  const hdr = (label,key)=>`<th class="sortable ${sortKey===key?'on':''}" data-key="${key}">${label}${sortKey===key?(sortDir==='asc'?' ▲':' ▼'):''}</th>`;
+  let rows = '<tr><th>股票</th>'+hdr('连板','board')+hdr('封板时间','seal')+hdr('封单额','fund')+hdr('炸板','zbc')+hdr('收盘','close')+'</tr>';
+  if(!list.length){
+    rows += '<tr><td colspan="6" style="color:var(--dim);text-align:center;padding:12px">无</td></tr>';
+  }else{
+    list.forEach(l=>{
+      const pc = PTYPE_COLOR[l.ptype] || PTYPE_COLOR['换手板'];
+      const ptag = `<span class="ptype" style="background:${pc};color:${textColor(pc)}">${ptypeText(l)}</span>`;
+      const ind = l.hybk?` <span class="ind">${l.hybk}</span>`:'';
+      rows += `<tr><td>${l.name||''}${ptag}${ind}<br><span style="color:var(--dim)">${l.code}</span></td>
+        <td><span class="b" style="background:${ph};color:${tc}">${l.board}板</span></td>
+        <td>${fmtSeal(l)}</td>
+        <td>${fmtFund(l.fund)}</td>
+        <td>${l.zbc==null?'—':l.zbc}</td>
+        <td>${l.close}</td></tr>`;
+    });
+  }
+  leadEl.innerHTML = rows;
+  leadEl.querySelectorAll('th.sortable').forEach(th=>{
+    th.addEventListener('click', ()=>{
+      const k = th.dataset.key;
+      if(sortKey===k){ sortDir = sortDir==='asc'?'desc':'asc'; }
+      else { sortKey=k; sortDir='asc'; }
+      renderLeaders(selBoard);
+    });
+  });
+}
+
+function renderLadder(){
+  let html = '';
+  for(let n=1;n<=Math.max(5,maxB);n++){
+    const cnt = ladder[String(n)]||0;
+    html += `<div class="step ${n===maxB?'hot':''} ${n===selBoard?'sel':''}" data-board="${n}"><div class="n">${cnt}</div><div class="lb">${n}板</div></div>`;
+  }
+  ladderEl.innerHTML = html;
+  ladderEl.querySelectorAll('.step').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const b = +el.dataset.board;
+      selBoard = (selBoard===b)?null:b;
+      renderLadder();
+      renderLeaders(selBoard);
+    });
+  });
+}
+renderLadder();
+renderLeaders(null);
+
+// 指标
+document.getElementById('m-date').textContent = latest.date;
+const adv = latest.advance||{};
+const metrics = [
+  {k:'涨停家数', v:latest.limit_up, c:'up'},
+  {k:'跌停家数', v:latest.limit_down, c:'dn'},
+  {k:'炸板家数', v:latest.break_cnt, c:''},
+  {k:'封板率', v:latest.seal_rate+'%', c:''},
+  {k:'最高板', v:latest.max_board+'板', c:''},
+  {k:'连板家数', v:latest.lian_total, c:'up'},
+  {k:'昨涨停今表现', v:(latest.yest_lu_perf>0?'+':'')+latest.yest_lu_perf+'%', c:latest.yest_lu_perf>0?'up':'dn'},
+  {k:'上涨/下跌', v:latest.up_cnt+'/'+latest.down_cnt, c:''},
+];
+document.getElementById('metrics').innerHTML = metrics.map(m=>
+  `<div class="metric ${m.c}"><div class="v">${m.v}</div><div class="k">${m.k}</div></div>`).join('');
+const fmtRate = r => r==null?'—':r+'%';
+document.getElementById('advance').innerHTML =
+  `<span>晋级率</span>
+   <span>1进2 <b>${fmtRate(adv['1to2'])}</b></span>
+   <span>2进3 <b>${fmtRate(adv['2to3'])}</b></span>
+   <span>3进4 <b>${fmtRate(adv['3to4'])}</b></span>
+   <span>4进5 <b>${fmtRate(adv['4to5'])}</b></span>`;
+
+// 图例
+document.getElementById('legend').innerHTML = PHASE_ORDER.map(p=>
+  `<span><i style="background:${PHASE_COLOR[p]}"></i>${p}</span>`).join('');
+
+// 行业分布
+const secEl = document.getElementById('sectors');
+const sectors = latest.sectors || [];
+if(sectors.length){
+  const secMax = sectors[0].count;
+  secEl.innerHTML = sectors.map(s=>
+    `<div class="sector"><span class="sn">${s.name}</span><div class="track"><div class="fill" style="width:${(s.count/secMax*100).toFixed(1)}%"></div></div><span class="sc">${s.count}</span></div>`
+  ).join('');
+}else{
+  secEl.innerHTML = '<div style="color:var(--dim)">无行业数据（需先运行 fetch_zt_pool.py）</div>';
+}
+
+// 连板晋级
+const promoEl = document.getElementById('promotion');
+const promotion = latest.promotion || [];
+if(promotion.length){
+  promoEl.innerHTML = promotion.map(g=>{
+    const jin = g.jin.map(s=>`<span class="chip jin">${s.name} <span class="c">→${s.today}板</span></span>`).join('');
+    const shou = g.board === 1;
+    const duan = shou
+      ? (g.duan.length ? `<span class="chip duan" title="${g.duan.map(s=>s.name+(s.chg!=null?(' '+(s.chg>0?'+':'')+s.chg+'%'):'')).join('、')}">断板 ${g.duan.length}只</span>` : '')
+      : g.duan.map(s=>{
+          const chg = s.chg;
+          const txt = chg==null?'—':((chg>0?'+':'')+chg+'%');
+          const cc = chg>0?'#d93025':(chg<0?'#16a34a':'#8a94a6');
+          return `<span class="chip duan">${s.name} <b style="color:${cc}">${txt}</b></span>`;
+        }).join('');
+    return `<div class="promo-group"><div class="promo-head"><span class="lb">昨${g.board}板</span><span class="stat">${g.jin.length+g.duan.length}只 · 晋级${g.jin.length} · 断板${g.duan.length}</span></div><div class="promo-body">${jin}${duan}</div></div>`;
+  }).join('');
+}else{
+  promoEl.innerHTML = '<div style="color:var(--dim)">无数据</div>';
+}
+
+// 曲线
+const hist = D.history.slice(-60);
+const svg = document.getElementById('chart');
+const W = 1080, H = 240, padL=40, padR=16, padT=18, padB=26;
+svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+const iw = W-padL-padR, ih = H-padT-padB;
+const temps = hist.map(h=>h.temp);
+const yMin=0, yMax=100;
+const x = i => padL + iw*(hist.length>1? i/(hist.length-1):0);
+const y = t => padT + ih*(1-(t-yMin)/(yMax-yMin));
+// 网格+刻度
+let grid='';
+for(let g=0;g<=100;g+=25){
+  const gy=y(g);
+  grid+=`<line x1="${padL}" y1="${gy}" x2="${W-padR}" y2="${gy}" stroke="#e3e6ea" stroke-width="1"/><text x="${padL-8}" y="${gy+4}" fill="#8a94a6" font-size="11" text-anchor="end">${g}</text>`;
+}
+// 区域填充
+const area = hist.map((h,i)=>`${i?'L':'M'}${x(i)},${y(h.temp)}`).join(' ')+` L${x(hist.length-1)},${y(0)} L${x(0)},${y(0)} Z`;
+// 折线 + 阶段着色点
+let line='', dots='';
+hist.forEach((h,i)=>{
+  const px=x(i), py=y(h.temp);
+  line += (i?' L':'M')+px+','+py;
+  dots += `<circle cx="${px}" cy="${py}" r="3.5" fill="${phaseColor(h.phase)}" data-i="${i}"/>`;
+});
+// x轴日期标签（稀疏）
+let xlabs='';
+hist.forEach((h,i)=>{
+  if(i%Math.ceil(hist.length/8)===0 || i===hist.length-1){
+    xlabs+=`<text x="${x(i)}" y="${H-padB+16}" fill="#8a94a6" font-size="11" text-anchor="middle">${h.date.slice(5)}</text>`;
+  }
+});
+svg.innerHTML = `<defs><linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
+  <stop offset="0%" stop-color="${phaseColor(latest.phase)}" stop-opacity="0.25"/>
+  <stop offset="100%" stop-color="${phaseColor(latest.phase)}" stop-opacity="0"/></linearGradient></defs>
+  ${grid}<path d="${area}" fill="url(#area)"/><path d="${line}" fill="none" stroke="#1a1a1a" stroke-width="1.6"/>${dots}${xlabs}`;
+
+// tooltip
+const tip = document.getElementById('tip');
+svg.querySelectorAll('circle').forEach(c=>{
+  c.addEventListener('mousemove', e=>{
+    const h=hist[+c.dataset.i];
+    tip.style.display='block';
+    tip.style.left=(e.clientX+14)+'px'; tip.style.top=(e.clientY-40)+'px';
+    tip.innerHTML=`<b>${h.date}</b> ${h.phase}期 ${h.temp}°<br>涨停${h.limit_up} 跌停${h.limit_down} 封板${h.seal_rate}% 最高${h.max_board}板`;
+  });
+  c.addEventListener('mouseleave', ()=>tip.style.display='none');
+});
+</script>
+</body>
+</html>
