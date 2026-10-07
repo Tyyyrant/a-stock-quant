@@ -4,11 +4,11 @@
 
 逻辑（龙头战法）：
   1. 辨识度六维只负责圈出候选池（排名），不预测谁晋级——中晶排第一就是第一，没问题。
-  2. 真正决定打谁的是次日竞价/开盘是否落在「它自己该有的预期」里：
-     一字板 → 竞价继续一字/高开≥7%；T字板 → 高开3~6%回封不炸(顶一字=诱多)；
-     秒板/换手(首封≤09:35) → 高开3~6%；早封换手(≤10:30) → 高开1~3%；
-     尾盘板/炸≥3 → 平开低开正常，看弱转强。
-  3. 决策铁律：只打「竞价达标 + 开盘强势」里辨识度最高的；第一若诱多/低于预期 → 降级看第二；全不达标 → 空仓。
+  2. 真正决定打谁的是次日竞价/开盘是否落在「它自己该有的预期」里（1775样本统计拟合，见 expectation 注释）：
+     一字板 → 须继续一字(≥9.5%)，开板(2~7%)即弃；
+     T字板 → 一字开(59%)或高开≥4%(56%)，微高开0-2%(21.7%)弃；
+     换手板 → 一字开(52.4%)或低开反包(43.2%)，中高开2-6%(30-32%)弃。
+  3. 决策铁律：只打「竞价达标 + 开盘强势」里辨识度最高的；第一若低于预期 → 降级看第二；全不达标 → 空仓。
 
 用法: python3 scripts/review_node_days.py [起始日]   # 缺省 2026-09-04(涨停池最早)
 供 compute_emotion.py 调用 build_node_review() 嵌入盘面 HTML。
@@ -62,47 +62,44 @@ def fbt_sec(fbt):
 
 
 def expectation(ptype, fbt, zbc):
-    """次日竞价/开盘预期（标准打板框架，非拟合）→ (竞价预期, 开盘预期)"""
+    """次日开盘预期（1775样本统计拟合 board_dataset.csv：2板型 × 3板开盘 → 晋级4板+率）
+    规律：开盘不是越强越好，而是「要么够强(一字/超高开)、要么够弱(低开反包)」，卡中间2~5%最危险。
+    (fbt 封板时间暂未入模——历史涨停时间缺失；近3周涨停池数据齐了可再拟合)
+    → (竞价预期, 开盘预期)
+    """
     if zbc is not None and zbc >= 3:
         return '平开/低开正常', '看弱转强'
     if ptype == '一字板':
-        return '竞价一字/高开≥7%', '封死不炸'
+        # 一字开60.8% / 8-9.5%仅35.7% / 6-8%仅28.1% / 2-7%开板仅7.7~27% → 非一字即弃
+        return '须继续一字(≥9.5%)', '开板(2~7%)即弃'
     if ptype == 'T字板':
-        return '高开3~6%', '30min回封不炸'
-    sec = fbt_sec(fbt)
+        # 一字开59% / 高开4-6%56% / 8-9.5%55% / 微高开0-2%仅21.7% → 避开微高开
+        return '一字开或高开≥4%', '微高开0-2%弃'
     if ptype == '换手板':
-        if sec is not None and sec <= 9 * 3600 + 35 * 60:
-            return '高开3~6%', '快速上板'
-        if sec is not None and sec <= 10 * 3600 + 30 * 60:
-            return '高开1~3%', '上冲封板'
-        return '平开/低开正常', '看弱转强'
+        # 一字开52.4% / 低开反包43.2% / 中间2-6%仅30-32% → 两极分化，中间最尴尬
+        return '一字开或低开反包', '中高开2-6%弃'
     # 回封板(炸<3)
     return '高开1~3%', '回封不炸'
 
 
 def judge_open(ptype, fbt, zbc, opct):
-    """次日竞价达标判定：达标/超预期/诱多/低于/弱转强"""
+    """次日开盘达标判定（口径对齐 expectation 的统计拟合）：达标/超预期/低于/弱转强"""
     if opct is None:
         return '-'
     if zbc is not None and zbc >= 3:
         return '弱转强'
     if ptype == '一字板':
-        return '达标' if opct >= 7 else '低于'
+        return '达标' if opct >= 9.5 else '低于'        # 非一字即弃(开板2~7%仅7.7~27%)
     if ptype == 'T字板':
         if opct >= 9.5:
-            return '顶一字诱多'
-        return '达标' if opct >= 3 else '低于'
-    sec = fbt_sec(fbt)
+            return '超预期'                              # 一字开59%(黄金组合,非诱多)
+        return '达标' if opct >= 4 else '低于'           # 0-2%微高开21.7%死亡区
     if ptype == '换手板':
-        if sec is not None and sec <= 9 * 3600 + 35 * 60:
-            if opct >= 9.5:
-                return '超预期'
-            return '达标' if opct >= 3 else '低于'
-        if sec is not None and sec <= 10 * 3600 + 30 * 60:
-            if opct >= 3:
-                return '超预期'
-            return '达标' if opct >= 1 else '低于'
-        return '弱转强'
+        if opct >= 9.5:
+            return '超预期'                              # 一字开52.4%
+        if opct < 0:
+            return '弱转强'                              # 低开反包43.2%
+        return '低于'                                    # 0-9.5%中间尴尬区(30-42%)
     # 回封板(炸<3)
     return '达标' if opct >= 1 else '低于'
 
@@ -163,7 +160,7 @@ def build_node_review(start='2026-09-04'):
                 })
             rows.sort(key=lambda x: -x['score'])
             play = [r for r in rows if r['verdict'] in ('达标', '超预期')]
-            avoid = [r['name'] for r in rows if r['verdict'] in ('顶一字诱多', '低于')]
+            avoid = [r['name'] for r in rows if r['verdict'] == '低于']
             weak = [{'n': r['name'], 'opct': r['opct']} for r in rows if r['verdict'] == '弱转强']
             decision = {
                 'play': [{'n': r['name'], 'opct': r['opct']} for r in play],

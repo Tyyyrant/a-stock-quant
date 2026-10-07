@@ -8,7 +8,7 @@
   :root{
     --bg:#ffffff; --panel:#ffffff; --panel2:#f5f6f8; --border:#e3e6ea;
     --txt:#1a1a1a; --sub:#5f6b7a; --dim:#8a94a6;
-    --c冰点:#5b8ff9; --c修复:#5ad8a6; --c升温:#f6bd16; --c高潮:#ff6b6b; --c降温:#9270ca; --c退潮:#3d5a80;
+    --c冰点:#5b8ff9; --c启动:#5ad8a6; --c发酵:#f6bd16; --c高潮:#ff6b6b; --c退潮:#3d5a80;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--bg);color:var(--txt);font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;padding:24px;line-height:1.5}
@@ -44,7 +44,25 @@
   .ladder .step.hot{border-color:var(--c高潮);box-shadow:0 0 0 1px var(--c高潮) inset}
   .ladder .step.sel{background:var(--panel);border-color:var(--txt);box-shadow:0 0 0 1.5px var(--txt) inset}
 
-  .leaders{max-height:230px;overflow:auto}
+  /* 连板天梯(3日演变: 横看一行=该板位3日演变, 点股票全图高亮) */
+  .ladder3d{width:100%;border-collapse:collapse;font-size:12px}
+  .ladder3d th{color:var(--dim);font-weight:500;text-align:left;padding:4px 6px;border-bottom:1px solid var(--border);white-space:nowrap}
+  .ladder3d th.cur{color:#d93025;font-weight:700}
+  .ladder3d td{padding:6px;border-top:1px solid var(--border);vertical-align:top}
+  .ladder3d td.bd{font-weight:800;white-space:nowrap;min-width:52px}
+  .ladder3d td.bd .rate{display:block;font-size:11px;color:#d93025;font-weight:600;margin-top:2px}
+  .ladder3d td.bd .cnt{display:block;font-size:11px;color:var(--sub);font-weight:400;margin-top:1px}
+  .dchip{display:inline-flex;align-items:center;gap:3px;font-size:11px;padding:2px 6px;margin:2px;border-radius:4px;border:1px solid var(--border);background:var(--panel2);cursor:pointer;font-weight:600}
+  .dchip:hover{border-color:var(--txt)}
+  .dchip.hl{outline:2px solid #ff6b6b;outline-offset:1px;z-index:1}
+  .dchip.duan{background:transparent;border-style:dashed;opacity:.88}
+  .dchip.duan .nm{text-decoration:line-through;color:var(--dim);font-weight:500}
+  .dchip.duan .chg{font-weight:700}
+  .dchip.duan .chg.na{color:var(--dim)}
+  .dchip.duan .chg.up{color:#d93025}
+  .dchip.duan .chg.dn{color:#16a34a}
+
+  .leaders{height:230px;overflow:auto}
   .leaders table{width:100%;border-collapse:collapse;font-size:13px}
   .leaders th{color:var(--dim);font-weight:500;text-align:left;padding:4px 6px;position:sticky;top:0;background:var(--panel)}
   .leaders th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
@@ -91,6 +109,53 @@
   .chip.jin{background:#fdecea;border-color:#f5c6cb;color:#d93025;font-weight:600}
   .chip.duan{color:var(--sub)}
   .chip .c{color:var(--dim);font-size:11px}
+
+  /* 龙头识别 */
+  .leader-banner{border:1px solid #d93025;background:#fff5f5;border-radius:10px;padding:14px 16px;margin-bottom:14px;display:flex;flex-direction:column;gap:8px}
+  .leader-banner.dim{border-color:var(--border);background:var(--panel2);color:var(--sub)}
+  .leader-banner .lb-tag{font-size:11px;font-weight:700;color:#d93025;letter-spacing:2px}
+  .leader-banner .lb-name{font-size:18px;font-weight:800}
+  .leader-banner .lb-name .lb-code{font-size:12px;color:var(--dim);font-weight:400;margin-left:6px}
+  .leader-banner .lb-meta{font-size:12px;color:var(--sub)}
+  .leader-banner .lb-score{font-size:16px;color:#d93025}
+  .leader-banner .lb-parts{display:flex;flex-wrap:wrap;gap:6px}
+  .leader-banner .sp{font-size:11px;background:#fff;border:1px solid var(--border);border-radius:6px;padding:2px 8px;color:var(--sub)}
+  .leader-banner .sp b{color:var(--txt);font-size:13px;margin-right:2px}
+  .lr-table{width:100%;border-collapse:collapse;font-size:13px}
+  .lr-table th{color:var(--dim);font-weight:500;text-align:left;padding:6px 8px;border-bottom:1px solid var(--border)}
+  .lr-table td{padding:7px 8px;border-bottom:1px solid var(--border)}
+  .lr-table tr.lt td{background:#fff7f7}
+  .type-tag{display:inline-block;font-size:11px;font-weight:700;padding:1px 8px;border-radius:4px}
+  .type-tag.lt{background:#d93025;color:#fff}
+  .type-tag.zl{background:#f4eefc;color:#722ed1}
+  .type-tag.gen{background:#fff2e0;color:#e8700a}
+  .type-tag.zj{background:#eef0f4;color:var(--sub)}
+  .unsealed{color:#d93025;font-size:11px;font-weight:600;margin-left:4px}
+
+  /* 节点日复盘 */
+  .nr-day{border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+  .nr-day:last-child{margin-bottom:0}
+  .nr-head{display:flex;align-items:baseline;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+  .nr-head .d{font-size:14px;font-weight:800}
+  .nr-head .dr{font-size:12px;color:var(--sub)}
+  .nr-group{margin-top:12px}
+  .nr-group .gl{font-size:12px;font-weight:700;color:var(--sub);margin-bottom:6px}
+  .nr-table{width:100%;border-collapse:collapse;font-size:12px}
+  .nr-table th{color:var(--dim);font-weight:500;text-align:left;padding:3px 6px;border-bottom:1px solid var(--border);white-space:nowrap}
+  .nr-table td{padding:4px 6px;border-top:1px solid var(--border);white-space:nowrap}
+  .nr-table tr.pick td{background:#fff7f7}
+  .verdict{display:inline-block;font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px}
+  .v-达标{background:#e6f4ea;color:#16a34a}
+  .v-超预期{background:#fdecea;color:#d93025}
+  .v-低于{background:#eef0f4;color:#8a94a6}
+  .v-弱转强{background:#f4eefc;color:#722ed1}
+  .v--{background:#eef0f4;color:#8a94a6}
+  .res-jin{color:#d93025;font-weight:700}
+  .res-duan{color:var(--dim)}
+  .nr-decision{font-size:12px;margin-top:6px;color:var(--txt)}
+  .nr-decision .pick{color:#d93025;font-weight:700}
+  .nr-decision .avoid{color:var(--dim)}
+  .nr-decision .weak{color:#722ed1}
 </style>
 </head>
 <body>
@@ -106,7 +171,7 @@
       <h2>情绪温度</h2>
       <div class="temp-big"><span class="temp-num" id="temp-num">--</span><span class="temp-unit">° / 100</span></div>
       <div class="thermo"><div class="fill" id="thermo-fill"></div><div class="ticks"><span></span><span></span><span></span><span></span><span></span></div></div>
-      <div class="temp-label"><span>冰点 0</span><span>修复 35</span><span>升温 60</span><span>高潮 80</span><span>100</span></div>
+      <div class="temp-label"><span>冰点 0</span><span>启动 35</span><span>发酵 60</span><span>高潮 80</span><span>100</span></div>
     </div>
 
     <div class="card">
@@ -122,8 +187,8 @@
     </div>
 
     <div class="card" style="grid-column:1/-1">
-      <h2>连板晋级 <span class="tag">昨日涨停 → 今日表现</span></h2>
-      <div class="promotion" id="promotion"></div>
+      <h2>连板天梯 <span class="tag">最新在左 · 横看一行=该板位3日演变(接力/断板) · 点任一票全图高亮</span></h2>
+      <div id="ladder3d"></div>
     </div>
 
     <div class="card" style="grid-column:1/-1">
@@ -136,6 +201,26 @@
       <svg class="chart" id="chart"></svg>
       <div class="legend" id="legend"></div>
     </div>
+
+    <div class="card" style="grid-column:1/-1">
+      <h2>龙头识别 <span class="tag">总龙=辨识度第一 · 小弟=一板二板同板块/同名字跟风(0=吃独食)</span></h2>
+      <div id="leader-rank"></div>
+    </div>
+
+    <div class="card" style="grid-column:1/-1">
+      <h2>明日推荐 <span class="tag">节点日晋级候选 → 辨识度第一 · 符合/超预期才做，否则不做</span></h2>
+      <div id="tomorrow-reco"></div>
+    </div>
+
+    <div class="card" style="grid-column:1/-1">
+      <h2>今晚决策 <span class="tag">最高标(总龙) + 2进3低位接力 + 1进2弱转强 · 各附次日竞价/开盘预期 · 符合/超预期才做</span></h2>
+      <div id="night-reco"></div>
+    </div>
+
+    <div class="card" style="grid-column:1/-1">
+      <h2>节点日复盘 <span class="tag">龙头断板日 → 候选池(辨识度) + 次日竞价/开盘预期 + 达标判定 · 历史回溯</span></h2>
+      <div id="node-review"></div>
+    </div>
   </div>
 </div>
 <div class="tooltip" id="tip"></div>
@@ -143,8 +228,8 @@
 <script src="emotion_data.js"></script>
 <script>
 const D = window.EMOTION_DATA;
-const PHASE_COLOR = {冰点:'#5b8ff9',修复:'#5ad8a6',升温:'#f6bd16',高潮:'#ff6b6b',降温:'#9270ca',退潮:'#3d5a80'};
-const PHASE_ORDER = ['冰点','修复','升温','高潮','降温','退潮'];
+const PHASE_COLOR = {冰点:'#5b8ff9',启动:'#5ad8a6',发酵:'#f6bd16',高潮:'#ff6b6b',退潮:'#3d5a80'};
+const PHASE_ORDER = ['冰点','启动','发酵','高潮','退潮'];
 
 function phaseColor(p){return PHASE_COLOR[p]||'#888'}
 function textColor(hex){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return (0.299*r+0.587*g+0.114*b)>150?'#1a1a1a':'#fff'}
@@ -283,26 +368,58 @@ if(sectors.length){
   secEl.innerHTML = '<div style="color:var(--dim)">无行业数据（需先运行 fetch_zt_pool.py）</div>';
 }
 
-// 连板晋级
-const promoEl = document.getElementById('promotion');
-const promotion = latest.promotion || [];
-if(promotion.length){
-  promoEl.innerHTML = promotion.map(g=>{
-    const jin = g.jin.map(s=>`<span class="chip jin">${s.name} <span class="c">→${s.today}板</span></span>`).join('');
-    const shou = g.board === 1;
-    const duan = shou
-      ? (g.duan.length ? `<span class="chip duan" title="${g.duan.map(s=>s.name+(s.chg!=null?(' '+(s.chg>0?'+':'')+s.chg+'%'):'')).join('、')}">断板 ${g.duan.length}只</span>` : '')
-      : g.duan.map(s=>{
-          const chg = s.chg;
-          const txt = chg==null?'—':((chg>0?'+':'')+chg+'%');
-          const cc = chg>0?'#d93025':(chg<0?'#16a34a':'#8a94a6');
-          return `<span class="chip duan">${s.name} <b style="color:${cc}">${txt}</b></span>`;
-        }).join('');
-    return `<div class="promo-group"><div class="promo-head"><span class="lb">昨${g.board}板</span><span class="stat">${g.jin.length+g.duan.length}只 · 晋级${g.jin.length} · 断板${g.duan.length}</span></div><div class="promo-body">${jin}${duan}</div></div>`;
-  }).join('');
-}else{
-  promoEl.innerHTML = '<div style="color:var(--dim)">无数据</div>';
-}
+// 连板天梯(3日演变: 最新在左, 横看一行=该板位3日演变, 点股票全图高亮)
+const l3dEl = document.getElementById('ladder3d');
+const ladder3d = D.ladder_3d || [];
+(function renderLadder3d(){
+  if(!ladder3d.length){ l3dEl.innerHTML = '<div style="color:var(--dim)">无数据</div>'; return; }
+  const boardSet = new Set();
+  ladder3d.forEach(d=>{
+    Object.keys(d.boards||{}).forEach(k=>boardSet.add(+k));
+    Object.keys(d.duan||{}).forEach(k=>boardSet.add(+k));
+  });
+  const boards = [...boardSet].sort((a,b)=>b-a);
+  const adv = latest.advance || {};
+  const days = [...ladder3d].reverse();  // 最新在左
+  const daysHead = days.map((d,i)=>`<th class="${i===0?'cur':''}">${d.date.slice(5)}</th>`).join('');
+  const duanChip = s=>{
+    const c = s.chg==null ? '—' : ((s.chg>0?'+':'')+s.chg+'%');
+    const cc = s.chg==null ? 'na' : (s.chg>0?'up':'dn');
+    return `<span class="dchip duan" data-code="${s.code}" title="昨日${s.from}板→今日断板"><span class="nm">${s.name}</span><span class="chg ${cc}">${c}</span></span>`;
+  };
+  let rows = '';
+  boards.forEach(n=>{
+    const r = n>=2 ? adv[`${n-1}to${n}`] : null;
+    const rateTxt = n>=2 ? `${n-1}进${n} ${r!=null?Math.round(r)+'%':'—'}` : '首板';
+    const curCnt = ((days[0].boards||{})[String(n)]||[]).length;
+    const cells = days.map(d=>{
+      const list = (d.boards||{})[String(n)] || [];
+      const chips = list.map(s=>`<span class="dchip" data-code="${s.code}">${s.name}</span>`).join('');
+      const dl = (d.duan||{})[String(n)] || [];
+      let duanHtml = '';
+      if(n === 2 && dl.length){
+        // 首板晋级失败(昨日1板→今日未2板)数量多，折叠为一只汇总，悬停看明细
+        const tip = dl.map(s=>`${s.name} ${s.chg==null?'—':((s.chg>0?'+':'')+s.chg+'%')}`).join('、');
+        duanHtml = `<span class="dchip duan" title="${tip}">首板断 <span class="chg">${dl.length}只</span></span>`;
+      }else{
+        duanHtml = dl.map(duanChip).join('');
+      }
+      return `<td>${chips}${duanHtml}${(chips||duanHtml)?'':'<span style="color:var(--dim)">—</span>'}</td>`;
+    }).join('');
+    rows += `<tr><td class="bd">${n}板<span class="rate">${rateTxt}</span><span class="cnt">${curCnt}只</span></td>${cells}</tr>`;
+  });
+  l3dEl.innerHTML = `<table class="ladder3d"><thead><tr><th>板位</th>${daysHead}</tr></thead><tbody>${rows}</tbody></table>`;
+  l3dEl.querySelectorAll('.dchip').forEach(ch=>{
+    ch.addEventListener('click', ()=>{
+      const code = ch.dataset.code;
+      const wasActive = ch.classList.contains('hl');
+      l3dEl.querySelectorAll('.dchip.hl').forEach(x=>x.classList.remove('hl'));
+      if(!wasActive){
+        l3dEl.querySelectorAll(`.dchip[data-code="${code}"]`).forEach(x=>x.classList.add('hl'));
+      }
+    });
+  });
+})();
 
 // 曲线
 const hist = D.history.slice(-60);
@@ -352,6 +469,173 @@ svg.querySelectorAll('circle').forEach(c=>{
   });
   c.addEventListener('mouseleave', ()=>tip.style.display='none');
 });
+
+// 龙头识别
+const lrEl = document.getElementById('leader-rank');
+function fmtHs(v){ if(v==null||v===''||v==='-')return'—'; const n=+v; return isNaN(n)?v:n.toFixed(1)+'%'; }
+(function renderLeaderRank(){
+  const lr = latest.leader_rank || [];
+  if(!lr.length){ lrEl.innerHTML = '<div style="color:var(--dim)">无连板股(≥2板)</div>'; return; }
+  const ROLE_TAG = {总龙:'lt', 支线龙:'zl', 跟风:'gen', 中军:'zj'};
+  const nodeNote = latest.node
+    ? `<div style="font-size:12px;color:#d93025;margin-bottom:8px">⚠ 节点日（总龙断板）→ 切换 2进3，找最强3板新龙</div>` : '';
+  const longtou = lr.filter(s=>s.role==='总龙');
+  let banner = '';
+  if(longtou.length){
+    banner = longtou.map(s=>{
+      const pc = PTYPE_COLOR[s.ptype] || PTYPE_COLOR['换手板'];
+      const partHtml = Object.entries(s.parts||{}).map(([k,v])=>`<span class="sp"><b>${v}</b>${k}</span>`).join('');
+      const unsealed = s.sealed===false ? '<span class="unsealed">未封死</span>' : '';
+      return `<div class="leader-banner">
+        <div class="lb-tag">总龙 · 辨识度第一${s.sealed===false?' · 未封死(伪龙)':''}</div>
+        <div class="lb-name">${s.name} <span class="lb-code">${s.code}</span>
+          <span class="ptype" style="background:${pc};color:${textColor(pc)}">${ptypeText(s)}</span>
+          <span class="ind">${s.hybk||''}</span>${unsealed}</div>
+        <div class="lb-meta">${s.board}连板 · 封板${fmtSeal(s)} · 封单${fmtFund(s.fund)} · 换手${fmtHs(s.hs)} · 辨识度 <b class="lb-score">${s.score}</b></div>
+        <div class="lb-parts">${partHtml}</div>
+      </div>`;
+    }).join('');
+  }else{
+    banner = '<div class="leader-banner dim">连板断档（无连板股 ≥2板）</div>';
+  }
+  const rows = lr.map(s=>{
+    const pc = PTYPE_COLOR[s.ptype] || PTYPE_COLOR['换手板'];
+    const tag = ROLE_TAG[s.role] || 'zj';
+    const unsealed = s.sealed===false ? '<span class="unsealed">未封死</span>' : '';
+    return `<tr class="${s.role==='总龙'?'lt':''}">
+      <td><span class="type-tag ${tag}">${s.role}</span></td>
+      <td>${s.name} <span style="color:var(--dim)">${s.code}</span>${unsealed}
+        <span class="ptype" style="background:${pc};color:${textColor(pc)}">${ptypeText(s)}</span></td>
+      <td>${s.board}板</td>
+      <td>${fmtSeal(s)}</td>
+      <td>${fmtFund(s.fund)}</td>
+      <td>${fmtHs(s.hs)}</td>
+      <td>${s.hybk||'—'}</td>
+      <td>${s.followers==null?'—':(s.followers>0?('<b style="color:#d93025">'+s.followers+'</b>'):s.followers)}</td>
+      <td><b>${s.score}</b></td>
+    </tr>`;
+  }).join('');
+  lrEl.innerHTML = nodeNote + banner + `<table class="lr-table"><thead><tr><th>类型</th><th>股票</th><th>连板</th><th>封板</th><th>封单</th><th>换手</th><th>行业</th><th>小弟</th><th>辨识度</th></tr></thead><tbody>${rows}</tbody></table>`;
+})();
+
+// 明日推荐
+const trEl = document.getElementById('tomorrow-reco');
+(function renderTomorrowReco(){
+  const tr = D.tomorrow_reco || {};
+  if(!tr.node_day){
+    trEl.innerHTML = '<div style="color:var(--dim)">今日非节点日（无龙头断板）→ 龙空龙：无龙空仓，不追高，等下一个断板节点。</div>';
+    return;
+  }
+  const cards = (tr.stocks||[]).map(s=>{
+    const pc = PTYPE_COLOR[s.ptype]||PTYPE_COLOR['换手板'];
+    return `<div class="leader-banner">
+      <div class="lb-tag">${s.role||'候选'} · ${s.board}板 → 明日冲${s.next_board}板</div>
+      <div class="lb-name">${s.name} <span class="lb-code">${s.code}</span>
+        <span class="ptype" style="background:${pc};color:${textColor(pc)}">${s.ptype}</span>
+        <span class="ind">${s.hybk||''}</span></div>
+      <div class="lb-meta">封板${fmtSeal(s)} · 封单${fmtFund(s.fund)} · 换手${fmtHs(s.hs)} · 辨识度 <b class="lb-score">${s.score}</b></div>
+      <div style="margin-top:6px;font-size:13px">预期：<b>${s.expect}</b></div>
+    </div>`;
+  }).join('');
+  const plan = '<div style="font-size:12px;color:#d93025;margin:8px 0">⚠ 纪律：符合预期（高开晋级/继续封板）或超预期（继续一字）才做；低开/炸板/竞价不及预期 → 不做（空仓）。</div>';
+  trEl.innerHTML = `<div style="font-size:12px;color:var(--dim);margin-bottom:8px">${tr.note||''}</div>` + (cards||'<div style="color:var(--dim)">无封死晋级候选（全是换手/炸板烂板）→ 不做。</div>') + plan;
+})();
+
+// 今晚决策：最高标(总龙) + 2进3低位接力 + 1进2弱转强
+const nightEl = document.getElementById('night-reco');
+(function renderNightReco(){
+  const nr = D.night_reco || {};
+  let html = '';
+
+  // 1) 最高标(总龙)=辨识度第一
+  const lt = nr.longtou;
+  if(lt){
+    const pc = PTYPE_COLOR[lt.ptype]||PTYPE_COLOR['换手板'];
+    const adviceColor = lt.advice.indexOf('不碰')>=0 ? 'var(--dim)'
+                      : lt.advice.indexOf('兑现')>=0 ? '#e8700a' : '#1a7f37';
+    html += `<div class="leader-banner" style="border-left:4px solid ${pc}">
+      <div class="lb-tag">最高标 · 总龙(辨识度第一) · ${lt.board}板 ${lt.role||''}</div>
+      <div class="lb-name">${lt.name} <span class="lb-code">${lt.code}</span>
+        <span class="ptype" style="background:${pc};color:${textColor(pc)}">${lt.ptype}</span>
+        <span class="ind">${lt.hybk||''}</span></div>
+      <div class="lb-meta">封板${fmtSeal(lt)} · 封单${fmtFund(lt.fund)} · 换手${fmtHs(lt.hs)} · 辨识度 <b class="lb-score">${lt.score}</b></div>
+      <div style="margin-top:6px;font-size:13px">竞价预期：<b>${lt.exp_open}</b> ｜ 开盘：<b>${lt.exp_intra}</b></div>
+      <div style="margin-top:6px;font-size:13px;font-weight:700;color:${adviceColor}">→ ${lt.advice}</div>
+    </div>`;
+  } else {
+    html += '<div style="color:var(--dim);margin-bottom:10px">最高标(总龙)：无连板股 → 退潮/冰点，空仓。</div>';
+  }
+
+  // 2) 2进3 / 1进2 候选
+  (nr.groups||[]).forEach(g=>{
+    const cards = (g.stocks||[]).map(s=>{
+      const pc = PTYPE_COLOR[s.ptype]||PTYPE_COLOR['换手板'];
+      return `<div class="leader-banner">
+        <div class="lb-tag">${s.role||'候选'} · ${s.board}板 → 明日冲${s.next_board}板</div>
+        <div class="lb-name">${s.name} <span class="lb-code">${s.code}</span>
+          <span class="ptype" style="background:${pc};color:${textColor(pc)}">${s.ptype}</span>
+          <span class="ind">${s.hybk||''}</span></div>
+        <div class="lb-meta">封板${fmtSeal(s)} · 封单${fmtFund(s.fund)} · 换手${fmtHs(s.hs)} · 辨识度 <b class="lb-score">${s.score}</b></div>
+        <div style="margin-top:6px;font-size:13px">竞价预期：<b>${s.exp_open}</b> ｜ 开盘：<b>${s.exp_intra}</b></div>
+      </div>`;
+    }).join('');
+    const emptyTxt = g.label.indexOf('2进3')>=0 ? '今日无封死2板（全是一字高不可买或换手烂板）→ 低位接力不做' : '今日无封死首板候选';
+    html += `<div style="margin:14px 0 6px;font-weight:700;color:var(--sub)">${g.label}</div>`;
+    html += `<div style="font-size:12px;color:var(--dim);margin-bottom:8px">${g.note||''}</div>`;
+    html += cards || `<div style="color:var(--dim)">${emptyTxt}。</div>`;
+  });
+
+  html += '<div style="font-size:12px;color:#d93025;margin-top:10px">⚠ 纪律：只打「竞价达标 + 开盘强势」里辨识度最高的；第一若诱多/低于预期 → 降级看第二；全不达标 → 空仓（龙空龙）。</div>';
+  nightEl.innerHTML = html;
+})();
+
+// 节点日复盘
+const nrEl = document.getElementById('node-review');
+(function renderNodeReview(){
+  const nr = D.node_review || [];
+  if(!nr.length){ nrEl.innerHTML = '<div style="color:var(--dim)">无节点复盘数据（需先运行 fetch_zt_pool_history.py 抓历史涨停池）。</div>'; return; }
+  const fmtOpct = o => o==null ? '—' : ((o>0?'+':'')+o.toFixed(1)+'%');
+  const VD = {达标:'v-达标',超预期:'v-超预期',低于:'v-低于',弱转强:'v-弱转强'};
+  const html = nr.map(day=>{
+    const groups = day.groups.map(g=>{
+      const rows = g.rows.map(r=>{
+        const vcls = VD[r.verdict] || 'v--';
+        const resCls = (r.result && r.result.indexOf('晋级')===0) ? 'res-jin' : 'res-duan';
+        const isPick = g.decision.pick && g.decision.pick.c === r.code;
+        const zbcTxt = (r.zbc!=null && r.zbc>0) ? ('·炸'+r.zbc) : '';
+        return `<tr class="${isPick?'pick':''}">
+          <td><b>${r.score}</b></td>
+          <td>${r.name} <span style="color:var(--dim)">${r.code}</span></td>
+          <td>${r.board}板</td>
+          <td>${r.ptype}${zbcTxt}</td>
+          <td>${fmtHs(r.hs)}</td>
+          <td style="color:var(--sub)">${r.exp_open}<br><span style="color:var(--dim)">${r.exp_intra}</span></td>
+          <td>${fmtOpct(r.opct)}</td>
+          <td><span class="verdict ${vcls}">${r.verdict}</span></td>
+          <td class="${resCls}">${r.result||'—'}</td>
+        </tr>`;
+      }).join('');
+      const dec = g.decision;
+      let decHtml = '';
+      if(dec.pick){
+        const play = dec.play.map(p=>`${p.n}${fmtOpct(p.opct)}`).join('、');
+        decHtml = `达标可打 <span class="pick">${play}</span> ｜ 打辨识度最高 <span class="pick">${dec.pick.n}(${dec.pick.c})${fmtOpct(dec.pick.opct)}</span>`;
+        if(dec.avoid.length) decHtml += ` ｜ <span class="avoid">避 ${dec.avoid.join('、')}</span>`;
+        if(dec.weak.length) decHtml += ` ｜ <span class="weak">看开盘 ${dec.weak.map(w=>w.n+fmtOpct(w.opct)).join('、')}</span>`;
+      }else{
+        const parts = [];
+        if(dec.avoid.length) parts.push(`<span class="avoid">避 ${dec.avoid.join('、')}</span>`);
+        if(dec.weak.length) parts.push(`<span class="weak">看开盘弱转强 ${dec.weak.map(w=>w.n+fmtOpct(w.opct)).join('、')}</span>`);
+        decHtml = `无达标${parts.length?' ｜ '+parts.join(' ｜ '):''} → <span class="avoid">空仓/看开盘弱转强</span>`;
+      }
+      return `<div class="nr-group"><div class="gl">${g.label}</div>
+        <table class="nr-table"><thead><tr><th>辨识</th><th>股票</th><th>连板</th><th>板型</th><th>换手</th><th>竞价预期/开盘</th><th>次日高开</th><th>判定</th><th>结果</th></tr></thead><tbody>${rows}</tbody></table>
+        <div class="nr-decision">→ 决策：${decHtml}</div></div>`;
+    }).join('');
+    return `<div class="nr-day"><div class="nr-head"><span class="d">${day.date}</span><span class="dr">龙头断板：${day.dragon}</span></div>${groups}</div>`;
+  }).join('');
+  nrEl.innerHTML = html;
+})();
 </script>
 </body>
 </html>
