@@ -25,3 +25,10 @@ output/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# External repos / personal / large files (downloaded for reference)
+Horosa/
+vibe-trading/
+*.pdf
+*.docx
+.claude/

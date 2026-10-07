@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2进3晋级结构大数据分析报告（2024年以来）</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ff6b35'/%3E%3Ctext x='32' y='45' font-size='32' font-weight='bold' text-anchor='middle' fill='white'%3E2%3C/text%3E%3C/svg%3E">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0e1a; color: #e0e6f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; line-height: 1.6; }
+.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+.hero { background: linear-gradient(135deg, #1a1f35 0%, #0d1117 100%); border-radius: 16px; padding: 40px; margin-bottom: 24px; border: 1px solid #2a3450; position: relative; overflow: hidden; }
+.hero::before { content: ''; position: absolute; top: -50%; right: -20%; width: 400px; height: 400px; background: radial-gradient(circle, rgba(255,107,53,0.1) 0%, transparent 70%); }
+.hero h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; background: linear-gradient(90deg, #ff6b35, #ffb347); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.hero .subtitle { color: #8b95a8; font-size: 14px; margin-bottom: 24px; }
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; position: relative; z-index: 1; }
+.stat-card { background: rgba(255,255,255,0.03); border: 1px solid #2a3450; border-radius: 12px; padding: 20px; }
+.stat-card .label { color: #8b95a8; font-size: 13px; margin-bottom: 8px; }
+.stat-card .value { font-size: 28px; font-weight: 700; color: #fff; }
+.stat-card .value.orange { color: #ff6b35; }
+.stat-card .value.green { color: #4ade80; }
+.stat-card .value.red { color: #f87171; }
+.section { background: #111827; border-radius: 16px; padding: 28px; margin-bottom: 24px; border: 1px solid #1f2937; }
+.section h2 { font-size: 20px; font-weight: 600; margin-bottom: 6px; color: #fff; display: flex; align-items: center; gap: 10px; }
+.section h2::before { content: ''; width: 4px; height: 20px; background: linear-gradient(180deg, #ff6b35, #ffb347); border-radius: 2px; }
+.section .desc { color: #8b95a8; font-size: 13px; margin-bottom: 20px; }
+.chart { width: 100%; height: 400px; }
+.chart-tall { height: 500px; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.insight-box { background: rgba(255,107,53,0.08); border-left: 3px solid #ff6b35; border-radius: 0 8px 8px 0; padding: 16px 20px; margin-top: 16px; }
+.insight-box .title { color: #ff6b35; font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+.insight-box .content { color: #c0c8d8; font-size: 13px; line-height: 1.7; }
+.conclusion-list { list-style: none; }
+.conclusion-list li { padding: 14px 0; border-bottom: 1px solid #1f2937; display: flex; gap: 12px; align-items: flex-start; }
+.conclusion-list li:last-child { border-bottom: none; }
+.conclusion-list .num { width: 28px; height: 28px; background: linear-gradient(135deg, #ff6b35, #ffb347); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: #fff; flex-shrink: 0; }
+.conclusion-list .text { color: #c0c8d8; font-size: 14px; line-height: 1.7; }
+.conclusion-list .text strong { color: #ffb347; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { background: #1a2332; color: #8b95a8; padding: 12px; text-align: center; font-weight: 600; border-bottom: 2px solid #2a3450; }
+td { padding: 10px 12px; text-align: center; border-bottom: 1px solid #1f2937; color: #c0c8d8; }
+tr:hover td { background: rgba(255,107,53,0.05); }
+.highlight { color: #4ade80; font-weight: 600; }
+.lowlight { color: #f87171; font-weight: 600; }
+.footer { text-align: center; color: #4b5563; font-size: 12px; padding: 30px 0; }
+@media (max-width: 768px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .two-col { grid-template-columns: 1fr; }
+  .hero { padding: 24px; }
+  .hero h1 { font-size: 24px; }
+  .section { padding: 20px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="hero">
+  <h1>2进3晋级结构大数据分析报告</h1>
+  <div class="subtitle">数据周期：2023年12月 - 2026年9月 | 样本量：1,775只 | 含成功与失败完整案例</div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="label">总样本数</div><div class="value">1,775</div></div>
+    <div class="stat-card"><div class="label">成功晋级(4板+)</div><div class="value green">831</div></div>
+    <div class="stat-card"><div class="label">总体成功率</div><div class="value orange">46.8%</div></div>
+    <div class="stat-card"><div class="label">最高连板</div><div class="value">18板</div></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>月度晋级成功率趋势</h2>
+  <div class="desc">2024年1月以来各月2进3晋级成功率变化，观察市场情绪周期</div>
+  <div id="chart-month" class="chart chart-tall"></div>
+  <div class="insight-box">
+    <div class="title">趋势洞察</div>
+    <div class="content">2024年11月成功率最高达58.9%，2024年9月最低仅35.6%。2026年以来成功率整体下移至42.7%，较2024-2025年的48%有所下降，晋级难度增加。年初（1-2月）通常成功率较高，5-6月往往是低谷期。</div>
+  </div>
+</div>
+
+<div class="two-col">
+<div class="section">
+  <h2>2板涨停类型 vs 成功率</h2>
+  <div class="desc">不同板型的晋级概率与次日溢价</div>
+  <div id="chart-type" class="chart"></div>
+</div>
+<div class="section">
+  <h2>3板开盘涨幅 vs 成功率</h2>
+  <div class="desc">次日开盘涨幅区间对应的晋级概率</div>
+  <div id="chart-gain" class="chart"></div>
+</div>
+</div>
+
+<div class="section">
+  <h2>2板换手率 vs 晋级成功率</h2>
+  <div class="desc">2板当日换手率区间对应的晋级概率，缩量板 vs 放量板</div>
+  <div id="chart-hs" class="chart"></div>
+  <div class="insight-box">
+    <div class="title">换手洞察</div>
+    <div class="content">换手率&lt;5%的极低换手板成功率最高达50.5%，而20-30%高换手板仅38.6%。说明2板阶段缩量锁仓的股票筹码更稳定，次日晋级概率更大；高换手意味着分歧大，次日容易断板。</div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>最强组合：2板类型 × 3板开盘 交叉成功率</h2>
+  <div class="desc">样本量≥10的组合，按成功率排序</div>
+  <div style="overflow-x: auto;">
+  <table>
+    <thead><tr><th>排名</th><th>2板类型</th><th>3板开盘区间</th><th>样本数</th><th>成功数</th><th>成功率</th></tr></thead>
+    <tbody id="cross-table"></tbody>
+  </table>
+  </div>
+  <div class="insight-box">
+    <div class="title">组合洞察</div>
+    <div class="content"><strong>黄金组合</strong>：一字板+一字开，成功率60.8%（474只样本，最大样本量），说明强一致预期的股票最容易继续连板。<br><strong>死亡组合</strong>：一字板+小高开(2-4%)，成功率仅7.7%，一字板次日如果不能继续一字，反而开在不高不低的位置，说明资金分歧极大，极易断板。</div>
+  </div>
+</div>
+
+<div class="two-col">
+<div class="section">
+  <h2>连板高度分布</h2>
+  <div class="desc">成功晋级后能走到的最高连板数</div>
+  <div id="chart-peak" class="chart"></div>
+</div>
+<div class="section">
+  <h2>年度成功率对比</h2>
+  <div class="desc">各年度2进3整体成功率</div>
+  <div id="chart-year" class="chart"></div>
+</div>
+</div>
+
+<div class="section">
+  <h2>断板案例深度分析：不同2板类型的第三天开盘表现</h2>
+  <div class="desc">944只断板样本，分析失败时是否有溢价出逃机会</div>
+  <div id="chart-fail-type" class="chart"></div>
+  <div class="insight-box">
+    <div class="title">断板溢价洞察</div>
+    <div class="content"><strong>一字板断板也有高溢价</strong>：即使断板，一字板平均开盘仍有+8.53%，70.7%还是一字开，98.9%高开——排进去的一字板基本都有从容出逃机会。<br><strong>换手板 vs T字板</strong>：换手板断板时平均开盘+5.24%，略高于T字板的+4.98%；两者高开占比都在87%以上，说明2进3即使失败，大多数也有开盘溢价出逃的机会。</div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>可买入视角：排除一字板后的胜率排名</h2>
+  <div class="desc">一字板多数排不进去，以下为实际可参与的T字板和换手板各开盘区间胜率</div>
+  <div id="chart-buyable" class="chart chart-tall"></div>
+  <div class="insight-box">
+    <div class="title">可买入策略洞察</div>
+    <div class="content"><strong>胜率最高可买入类型</strong>：T字板整体胜率47.5%，高于换手板的41.9%。<br><strong>T字板最优开盘</strong>：一字开59.0%、中高开(4-6%)56.2%、超高开(8-9.5%)54.5%——T字板只要不是微高开和小高开，胜率都在54%以上。<br><strong>换手板唯一超50%</strong>：只有一字开(52.4%)胜率过半，其他开盘都偏弱；反直觉的是低开(43.2%)反而比小高开(30.4%)、中高开(31.8%)胜率高。<br><strong>避雷</strong>：T字板+微高开(0-2%)仅21.7%，换手板+小高开(2-4%)仅30.4%。</div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>断板也有高溢价：安全垫形态分析</h2>
+  <div class="desc">即使判断错误未能连板，什么样的形态在开盘时仍有较高溢价可以出逃</div>
+  <div id="chart-fail-premium" class="chart"></div>
+  <div class="insight-box">
+    <div class="title">安全垫洞察</div>
+    <div class="content"><strong>核心规律：2板换手率越低，断板时开盘溢价越高</strong>。2板换手&lt;5%的股票，即使断板平均开盘也有+8.12%，中位数+9.98%；而换手&gt;30%的股票断板时平均仅+1.34%，基本没有溢价。<br><strong>实战意义</strong>：选择2板缩量（换手&lt;5%）的股票参与，相当于自带安全垫——即使第三天未能连板，也有平均8%的开盘溢价让您从容出逃，亏损风险大幅降低。</div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>预期模型：不同2板形态的3板开盘预期与胜率（细分版）</h2>
+  <div class="desc">基于1%粒度的细分开盘区间，建立精确的预期管理体系</div>
+  
+  <div style="overflow-x: auto; margin-bottom: 24px;">
+  <table>
+    <thead>
+      <tr><th>2板类型</th><th>核心预期</th><th>最强开盘</th><th>胜率</th><th>死亡开盘区间</th><th>胜率</th><th>特殊规律</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>一字板</strong></td>
+        <td>继续一字开(≥9.5%)</td>
+        <td class="highlight">一字开</td>
+        <td class="highlight">60.8%</td>
+        <td class="lowlight">2-7%开板</td>
+        <td class="lowlight">10-27%</td>
+        <td>开板就危险，非一字胜率仅31%</td>
+      </tr>
+      <tr>
+        <td><strong>T字板</strong></td>
+        <td>高开5%以上</td>
+        <td class="highlight">一字开/5-7%</td>
+        <td class="highlight">59-67%</td>
+        <td class="lowlight">1-2%微高开</td>
+        <td class="lowlight">11.1%</td>
+        <td>开得越高胜率越高</td>
+      </tr>
+      <tr>
+        <td><strong>换手板</strong></td>
+        <td>要么一字要么低开反包</td>
+        <td class="highlight">一字开/8-9%</td>
+        <td class="highlight">48-52%</td>
+        <td class="lowlight">3-5%中高开</td>
+        <td class="lowlight">25-26%</td>
+        <td>低开反包也有43%胜率</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div id="chart-expectation-fine" class="chart chart-tall"></div>
+  
+  <div class="insight-box">
+    <div class="title">细分预期管理实战指南</div>
+    <div class="content">
+      <strong>一字板：预期就是继续一字</strong><br>
+      一字开(≥9.5%)胜率60.8%，一旦开板(<9.5%)胜率暴跌到31.2%。其中2-7%是最尴尬的"开板区间"，胜率仅10-27%。<strong>一字板如果第二天不是一字开，基本就可以放弃了</strong>。<br><br>
+      <strong>T字板：开得越高越好</strong><br>
+      一字开胜率59%，5-7%高开胜率62-67%，8-9%胜率56%。而1-2%微高开是死亡区间，胜率仅11%。<strong>T字板第二天如果只开1-2%，直接回避</strong>。<br><br>
+      <strong>换手板：两极分化，中间最尴尬</strong><br>
+      一字开胜率52.4%最强，8-9%高开48.6%第二，低开反包43.2%第三。而3-5%中高开是死亡区间，胜率仅25-26%。<strong>换手板要么参与一字开的，要么等低开反包，3-5%开盘的不要碰</strong>。
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div class="section">
+  <h2>核心结论与实操建议</h2>
+  <div class="desc">基于1,775只样本的统计规律总结</div>
+  <ul class="conclusion-list">
+    <li><div class="num">1</div><div class="text"><strong>2板选一字</strong>：一字板成功率55.1%，比换手板(41.9%)高13个百分点；一字板次日平均开盘涨幅8.98%，溢价显著。T字板居中(47.5%)。</div></li>
+    <li><div class="num">2</div><div class="text"><strong>3板看开盘</strong>：一字开(≥9.5%)成功率57.2%且样本最多(928只)，是最健康的晋级形态。反直觉的是<strong>低开(&lt;0%)成功率43.5%</strong>，反而高于小高开(28.4%)和中高开(32.2%)——低开后有资金反包的机会，而不高不低的开盘最尴尬。</div></li>
+    <li><div class="num">3</div><div class="text"><strong>缩量更安全</strong>：2板换手率&lt;5%成功率50.5%，20-30%仅38.6%。2板阶段缩量锁仓=筹码稳定，高换手=分歧大。</div></li>
+    <li><div class="num">4</div><div class="text"><strong>黄金组合</strong>：一字板+一字开=60.8%成功率，是最值得参与的形态；<strong>避雷组合</strong>：一字板+小高开(2-4%)=仅7.7%，遇到这种形态坚决回避。</div></li>
+    <li><div class="num">5</div><div class="text"><strong>周期意识</strong>：年初(1-2月)成功率通常50%+，5-6月往往是低谷(35-40%)，2026年以来整体难度上升，需要更严格的选股标准。</div></li>
+    <li><div class="num">6</div><div class="text"><strong>高度预期</strong>：成功晋级后，走到4板的概率24.5%，5板10.5%，6板以上仅11.4%。3进4是第一道坎，4进5是第二道坎，越高越稀缺。</div></li>
+  </ul>
+</div>
+
+<div class="footer">
+  数据来源：board_dataset.csv | 分析周期：2023.12-2026.09 | 本报告仅供研究参考，不构成投资建议
+</div>
+
+</div>
+
+<script>
+// 月度数据
+var monthData = {
+  labels: ['2024-01','2024-02','2024-03','2024-04','2024-05','2024-06','2024-07','2024-08','2024-09','2024-10','2024-11','2024-12','2025-01','2025-02','2025-03','2025-04','2025-05','2025-06','2025-07','2025-08','2025-09','2025-10','2025-11','2025-12','2026-01','2026-02','2026-03','2026-04','2026-05','2026-06','2026-07','2026-08','2026-09'],
+  rates: [59.1,51.0,44.4,44.0,37.0,52.9,41.9,41.4,35.6,49.0,58.9,51.0,52.8,53.8,52.8,54.4,44.3,51.0,45.5,47.5,42.6,40.6,49.1,43.4,50.0,46.4,47.1,37.8,34.9,31.2,40.6,45.3,46.8],
+  totals: [44,49,54,25,27,17,31,29,101,104,112,98,53,52,53,57,61,49,77,59,47,32,57,76,70,28,34,37,43,48,32,64,47]
+};
+
+var chartMonth = echarts.init(document.getElementById('chart-month'));
+chartMonth.setOption({
+  tooltip: { trigger: 'axis', backgroundColor: '#1a2332', borderColor: '#2a3450', textStyle: { color: '#e0e6f0' },
+    formatter: function(params) { return params[0].name + '<br/>成功率: ' + params[0].value + '%<br/>样本数: ' + monthData.totals[params[0].dataIndex] + '只'; }
+  },
+  grid: { left: 50, right: 30, top: 30, bottom: 60 },
+  xAxis: { type: 'category', data: monthData.labels, axisLabel: { color: '#8b95a8', rotate: 45, fontSize: 10 }, axisLine: { lineStyle: { color: '#2a3450' } } },
+  yAxis: { type: 'value', name: '成功率(%)', min: 20, max: 70, axisLabel: { color: '#8b95a8' }, splitLine: { lineStyle: { color: '#1f2937' } }, nameTextStyle: { color: '#8b95a8' } },
+  series: [{
+    type: 'line', data: monthData.rates, smooth: true, symbol: 'circle', symbolSize: 6,
+    lineStyle: { width: 3, color: '#ff6b35' }, itemStyle: { color: '#ff6b35' },
+    areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(255,107,53,0.3)'},{offset:1,color:'rgba(255,107,53,0)'}]) },
+    markLine: { silent: true, data: [{ yAxis: 46.8, name: '平均' }], lineStyle: { color: '#4ade80', type: 'dashed' }, label: { formatter: '平均46.8%', color: '#4ade80' } }
+  }]
+});
+
+// 2板类型
+var chartType = echarts.init(document.getElementById('chart-type'));
+chartType.setOption({
+  tooltip: { trigger: 'axis', backgroundColor: '#1a2332', borderColor: '#2a3450', textStyle: { color: '#e0e6f0' } },
+  legend: { data: ['成功率(%)', '次日平均开盘涨幅(%)'], textStyle: { color: '#8b95a8' }, top: 0 },
+  grid: { left: 50, right: 50, top: 40, bottom: 30 },
+  xAxis: { type: 'category', data: ['一字板', 'T字板', '换手板'], axisLabel: { color: '#c0c8d8' }, axisLine: { lineStyle: { color: '#2a3450' } } },
+  yAxis: [
+    { type: 'value', name: '成功率(%)', axisLabel: { color: '#8b95a8' }, splitLine: { lineStyle: { color: '#1f2937' } }, nameTextStyle: { color: '#8b95a8' } },
+    { type: 'value', name: '开盘涨幅(%)', axisLabel: { color: '#8b95a8' }, splitLine: { show: false }, nameTextStyle: { color: '#8b95a8' } }
+  ],
+  series: [
+    { name: '成功率(%)', type: 'bar', data: [55.1, 47.5, 41.9], barWidth: 40, itemStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#ff6b35'},{offset:1,color:'#ffb347'}]), borderRadius: [4,4,0,0] }, label: { show: true, position: 'top', color: '#ffb347', fontWeight: 'bold', formatter: '{c}%' } },
+    { name: '次日平均开盘涨幅(%)', type: 'line', yAxisIndex: 1, data: [8.98, 5.89, 5.65], symbol: 'diamond', symbolSize: 12, lineStyle: { width: 2, color: '#4ade80' }, itemStyle: { color: '#4ade80' }, label: { show: true, position: 'top', color: '#4ade80', formatter: '{c}%' } }
+  ]
+});
+
+// 开盘涨幅
+var chartGain = echarts.init(document.getElementById('chart-gain'));
+var gainLabels = ['低开(<0%)','微高开(0-2%)','小高开(2-4%)','中高开(4-6%)','大高开(6-8%)','超高开(8-9.5%)','一字开(≥9.5%)'];
+var gainRates = [43.5, 34.8, 28.4, 32.2, 34.8, 43.0, 57.2];
+var gainTotals = [138, 184, 134, 174, 138, 79, 928];
+chartGain.setOption({
+  tooltip: { trigger: 'axis', backgroundColor: '#1a2332', borderColor: '#2a3450', textStyle: { color: '#e0e6f0' },
+    formatter: function(params) { var i = params[0].dataIndex; return gainLabels[i] + '<br/>成功率: ' + gainRates[i] + '%<br/>样本数: ' + gainTotals[i] + '只'; }
+  },
+  grid: { left: 50, right: 30, top: 30, bottom: 60 },
+  xAxis: { type: 'category', data: gainLabels, axisLabel: { color: '#8b95a8', rotate: 30, fontSize: 10 }, axisLine: { lineStyle: { color: '#2a3450' } } },
+  yAxis: { type: 'value', name: '成功率(%)', min: 0, max: 70, axisLabel: { color: '#8b95a8' }, splitLine: { lineStyle: { color: '#1f2937' } }, nameTextStyle: { color: '#8b95a8' } },
+  series: [{
+    type: 'bar', data: gainRates.map(function(v, i) { return { value: v, itemStyle: { color: v >= 50 ? '#4ade80' : (v <= 30 ? '#f87171' : '#ffb347'), borderRadius: [4,4,0,0] } }; }),
+    barWidth: 35, label: { show: true, position: 'top', color: '#c0c8d8', formatter: '{c}%' },
+    markLine: { silent: true, data: [{ yAxis: 46.8 }], lineStyle: { color: '#8b95a8', type: 'dashed' }, label: { formatter: '平均', color: '#8b95a8' } }
+  }]
+});
+
+// 换手率
+var chartHs = echarts.init(document.getElementById('chart-hs'));
+chartHs.setOption({
+  tooltip: { trigger: 'axis', backgroundColor: '#1a2332', borderColor: '#2a3450', textStyle: { color: '#e0e6f0' } },
+  grid: { left: 50, right: 30, top: 30, bottom: 30 },
+  xAxis: { type: 'category', data: ['极低(<5%)','低(5-10%)','中(10-20%)','高(20-30%)','极高(>30%)'], axisLabel: { color: '#c0c8d8' }, axisLine: { lineStyle: { color: '#2a3450' } } },
+  yAxis: { type: 'value', name: '成功率(%)', min: 30, max: 60, axisLabel: { color: '#8b95a8' }, splitLine: { lineStyle: { color: '#1f2937' } }, nameTextStyle: { color: '#8b95a8' } },
+  series: [{
+    type: 'bar', data: [50.5, 44.1, 45.0, 38.6, 47.9], barWidth: 50,
+    itemStyle: { color: function(params) { var colors = ['#4ade80','#ffb347','#ffb347','#f87171','#ffb347']; return colors[params.dataIndex]; }, borderRadius: [4,4,0,0] },
+    label: { show: true, position: 'top', color: '#c0c8d8', formatter: '{c}%' }
+  }]
+});
+
+// 交叉表格数据
+var crossData = [
+  ['一字板','一字开(≥9.5%)',474,288,'60.8%','highlight'],
+  ['T字板','一字开(≥9.5%)',78,46,'59.0%','highlight'],
+  ['T字板','中高开(4-6%)',16,9,'56.2%','highlight'],
+  ['一字板','微高开(0-2%)',20,11,'55.0%','highlight'],
+  ['T字板','超高开(8-9.5%)',11,6,'54.5%',''],
+  ['换手板','一字开(≥9.5%)',376,197,'52.4%',''],
+  ['换手板','低开(<0%)',111,48,'43.2%',''],
+  ['换手板','超高开(8-9.5%)',54,23,'42.6%',''],
+  ['T字板','低开(<0%)',20,8,'40.0%',''],
+  ['T字板','大高开(6-8%)',10,4,'40.0%',''],
+  ['换手板','大高开(6-8%)',96,35,'36.5%',''],
+  ['一字板','超高开(8-9.5%)',14,5,'35.7%',''],
+  ['换手板','微高开(0-2%)',141,48,'34.0%',''],
+  ['换手板','中高开(4-6%)',132,42,'31.8%',''],
+  ['T字板','小高开(2-4%)',19,6,'31.6%',''],
+  ['换手板','小高开(2-4%)',102,31,'30.4%',''],
+  ['一字板','大高开(6-8%)',32,9,'28.1%','lowlight'],
+  ['T字板','微高开(0-2%)',23,5,'21.7%','lowlight'],
+  ['一字板','中高开(4-6%)',26,5,'19.2%','lowlight'],
+  ['一字板','小高开(2-4%)',13,1,'7.7%','lowlight']
+];
+var tbody = document.getElementById('cross-table');
+crossData.forEach(function(row, i) {
+  var tr = document.createElement('tr');
+  tr.innerHTML = '<td>' + (i+1) + '</td><td>' + row[0] + '</td><td>' + row[1] + '</td><td>' + row[2] + '</td><td>' + row[3] + '</td><td class="' + row[5] + '">' + row[4] + '</td>';
+  tbody.appendChild(tr);
+});
+
+// 连板高度
+var chartPeak = echarts.init(document.getElementById('chart-peak'));
+chartPeak.setOption({
+  tooltip: { trigger: 'item', backgroundColor: '#1a2332', borderColor: '#2a3450', textStyle: { color: '#e0e6f0' }, formatter: '{b}: {c}只 ({d}%)' },
+  legend: { type: 'scroll', orient: 'vertical', right: 10, top: 'center', textStyle: { color: '#8b95a8', fontSize: 11 } },
+  series: [{
+    type: 'pie', radius: ['40%', '70%'], center: ['35%', '50%'],
+    data: [
+      { value: 946, name: '3板(断板)' },
+      { value: 435, name: '4板' },
+      { value: 187, name: '5板' },
+      { value: 104, name: '6板' },
+      { value: 47, name: '7板' },
+      { value: 26, name: '8板' },
+      { value: 25, name: '9板+' }
+    ],
+    label: { color: '#c0c8d8', fontSize: 11 },
+    itemStyle: { borderColor: '#111827', borderWidth: 2 }
+  }]
+});
+
+// 年度对比
+var chartYear = echarts.init(document.getElementById('chart-year'));
+chartYear.setOption({
+  tooltip: { trigger: 'axis', backgroundColor: '#1a2332', borderColor: '#2a3450', textStyle: { color: '#e0e6f0' } },
+  grid: { left: 50, right: 30, top: 30, bottom: 30 },
+  xAxis: { type: 'category', data: ['2024年', '2025年', '2026年(至今)'], axisLabel: { color: '#c0c8d8' }, axisLine: { lineStyle: { color: '#2a3450' } } },
+  yAxis: { type: 'value', name: '成功率(%)', min: 35, max: 55, axisLabel: { color: '#8b95a8' }, splitLine: { lineStyle: { color: '#1f2937' } }, nameTextStyle: { color: '#8b95a8' } },
+  series: [{
+    type: 'bar', data: [
+      { value: 48.2, itemStyle: { color: '#4ade80', borderRadius: [4,4,0,0] } },
+      { value: 48.1, itemStyle: { color: '#ffb347', borderRadius: [4,4,0,0] } },
+      { value: 42.7, itemStyle: { color: '#f87171', borderRadius: [4,4,0,0] } }
+    ],
+    barWidth: 60, label: { show: true, position: 'top', color: '#c0c8d8', fontWeight: 'bold', formatter: '{c}%' }
+  }]
+});
+
+
+// 断板类型分析
+var chartFailType = echarts.init(document.getElementById('chart-fail-type'));
+chartFailType.setOption({
+  tooltip: { trigger: 'axis', backgroundColor: '#1a2332', borderColor: '#2a3450', textStyle: { color: '#e0e6f0' }, axisPointer: { type: 'shadow' } },
+  legend: { data: ['一字开(≥9.5%)','超高开(8-9.5%)','大高开(6-8%)','中高开(4-6%)','小高开(2-4%)','微高开(0-2%)','低开'], textStyle: { color: '#8b95a8' }, top: 0 },
+  grid: { left: 50, right: 30, top: 40, bottom: 30 },
+  xAxis: { type: 'category', data: ['一字板(263只)', 'T字板(93只)', '换手板(588只)'], axisLabel: { color: '#c0c8d8' }, axisLine: { lineStyle: { color: '#2a3450' } } },
+  yAxis: { type: 'value', name: '占比(%)', axisLabel: { color: '#8b95a8' }, splitLine: { lineStyle: { color: '#1f2937' } }, nameTextStyle: { color: '#8b95a8' }, max: 100 },
+  series: [
+    { name: '一字开(≥9.5%)', type: 'bar', stack: 'total', data: [70.7, 34.4, 30.4], itemStyle: { color: '#4ade80' } },
+    { name: '超高开(8-9.5%)', type: 'bar', stack: 'total', data: [3.4, 5.4, 5.3], itemStyle: { color: '#22d3ee' } },
+    { name: '大高开(6-8%)', type: 'bar', stack: 'total', data: [8.7, 6.5, 10.4], itemStyle: { color: '#60a5fa' } },
+    { name: '中高开(4-6%)', type: 'bar', stack: 'total', data: [8.0, 7.5, 15.3], itemStyle: { color: '#a78bfa' } },
+    { name: '小高开(2-4%)', type: 'bar', stack: 'total', data: [4.6, 14.0, 12.1], itemStyle: { color: '#fbbf24' } },
+    { name: '微高开(0-2%)', type: 'bar', stack: 'total', data: [3.4, 19.4, 15.8], itemStyle: { color: '#fb923c' } },
+    { name: '低开', type: 'bar', stack: 'total', data: [1.1, 12.9, 10.7], itemStyle: { color: '#f87171' }, label: { show: true, position: 'top', color: '#c0c8d8', formatter: function(p) { return '平均+' + [8.53, 4.98, 5.24][p.dataIndex] + '%'; } } }
+  ]
+});
+
+// 可买入类型胜率
+var chartBuyable = echarts.init(document.getElementById('chart-buyable'));
+var buyableLabels = ['一字开(≥9.5%)','超高开(8-9.5%)','大高开(6-8%)','中高开(4-6%)','小高开(2-4%)','微高开(0-2%)','低开'];
+var tRates = [59.0, 54.5, 40.0, 56.2, 31.6, 21.7, 40.0];
+var hRates = [52.4, 42.6, 36.5, 31.8, 30.4, 34.0, 43.2];
+var tTotals = [78, 11, 10, 16, 19, 23, 20];
+var hTotals = [376, 54, 96, 132, 102, 141, 111];
+chartBuyable.setOption({
+  tooltip: { trigger: 'axis', backgroundColor: '#1a2332', borderColor: '#2a3450', textStyle: { color: '#e0e6f0' },
+    formatter: function(params) { var i = params[0].dataIndex; var s = buyableLabels[i] + '<br/>'; params.forEach(function(p) { s += p.marker + p.seriesName + ': ' + p.value + '% (' + (p.seriesName === 'T字板' ? tTotals[i] : hTotals[i]) + '只)<br/>'; }); return s; }
+  },
+  legend: { data: ['T字板', '换手板'], textStyle: { color: '#8b95a8' }, top: 0 },
+  grid: { left: 50, right: 30, top: 40, bottom: 60 },
+  xAxis: { type: 'category', data: buyableLabels, axisLabel: { color: '#8b95a8', rotate: 30, fontSize: 10 }, axisLine: { lineStyle: { color: '#2a3450' } } },
+  yAxis: { type: 'value', name: '胜率(%)', min: 0, max: 70, axisLabel: { color: '#8b95a8' }, splitLine: { lineStyle: { color: '#1f2937' } }, nameTextStyle: { color: '#8b95a8' } },
+  series: [
+    { name: 'T字板', type: 'bar', data: tRates, barWidth: 30, itemStyle: { color: function(p) { return p.value >= 50 ? '#4ade80' : (p.value <= 30 ? '#f87171' : '#ffb347'); }, borderRadius: [4,4,0,0] }, label: { show: true, position: 'top', color: '#c0c8d8', fontSize: 10, formatter: '{c}%' } },
+    { name: '换手板', type: 'bar', data: hRates, barWidth: 30, itemStyle: { color: function(p) { return p.value >= 50 ? '#4ade80' : (p.value <= 30 ? '#f87171' : '#60a5fa'); }, borderRadius: [4,4,0,0] }, label: { show: true, position: 'top', color: '#c0c8d8', fontSize: 10, formatter: '{c}%' } },
+    { type: 'line', data: [46.8,46.8,46.8,46.8,46.8,46.8,46.8], lineStyle: { color: '#8b95a8', type: 'dashed', width: 1 }, symbol: 'none', tooltip: { show: false }, name: '平均胜率' }
+  ]
+});
+
+// 断板溢价分析
+var chartFailPremium = echarts.init(document.getElementById('chart-fail-premium'));
+chartFailPremium.setOption({
+  tooltip: { trigger: 'axis', backgroundColor: '#1a2332', borderColor: '#2a3450', textStyle: { color: '#e0e6f0' },
+    formatter: function(params) { var i = params[0].dataIndex; var hs = ['极低(<5%)','低(5-10%)','中(10-20%)','高(20-30%)','极高(>30%)'][i]; var cnt = [408,208,214,81,25][i]; return hs + '<br/>断板样本: ' + cnt + '只<br/>平均开盘: +' + params[0].value + '%'; }
+  },
+  grid: { left: 50, right: 30, top: 30, bottom: 30 },
+  xAxis: { type: 'category', data: ['极低(<5%)','低(5-10%)','中(10-20%)','高(20-30%)','极高(>30%)'], axisLabel: { color: '#c0c8d8' }, axisLine: { lineStyle: { color: '#2a3450' } } },
+  yAxis: { type: 'value', name: '断板平均开盘涨幅(%)', min: 0, max: 10, axisLabel: { color: '#8b95a8' }, splitLine: { lineStyle: { color: '#1f2937' } }, nameTextStyle: { color: '#8b95a8' } },
+  series: [{
+    type: 'bar', data: [8.12, 5.98, 4.37, 2.82, 1.34], barWidth: 50,
+    itemStyle: { color: function(params) { var colors = ['#4ade80','#22d3ee','#60a5fa','#fbbf24','#f87171']; return colors[params.dataIndex]; }, borderRadius: [4,4,0,0] },
+    label: { show: true, position: 'top', color: '#c0c8d8', fontWeight: 'bold', formatter: '+{c}%' }
+  }]
+});
+
+
+// 细分预期模型图表
+var chartExpectationFine = echarts.init(document.getElementById('chart-expectation-fine'));
+var fineLabels = ['低开(<0%)','0-1%','1-2%','2-3%','3-4%','4-5%','5-6%','6-7%','7-8%','8-9%','9-9.5%','一字开(≥9.5%)'];
+var yzRates = [57.1, 69.2, 28.6, 12.5, 0, 27.3, 13.3, 10.0, 58.3, 50.0, 25.0, 60.8];
+var tzRates = [40.0, 28.6, 11.1, 30.0, 33.3, 50.0, 62.5, 66.7, 28.6, 55.6, null, 59.0];
+var hsRates = [43.2, 35.7, 31.6, 36.2, 25.5, 25.8, 37.1, 36.2, 36.8, 48.6, 29.4, 52.4];
+chartExpectationFine.setOption({
+  tooltip: { trigger: 'axis', backgroundColor: '#1a2332', borderColor: '#2a3450', textStyle: { color: '#e0e6f0' },
+    formatter: function(params) { var i = params[0].dataIndex; var s = fineLabels[i] + '<br/>'; params.forEach(function(p) { if(p.value !== null && p.value !== undefined) s += p.marker + p.seriesName + ': ' + p.value + '%<br/>'; }); return s; }
+  },
+  legend: { data: ['一字板', 'T字板', '换手板'], textStyle: { color: '#8b95a8' }, top: 0 },
+  grid: { left: 50, right: 30, top: 40, bottom: 60 },
+  xAxis: { type: 'category', data: fineLabels, axisLabel: { color: '#8b95a8', rotate: 35, fontSize: 10 }, axisLine: { lineStyle: { color: '#2a3450' } } },
+  yAxis: { type: 'value', name: '晋级成功率(%)', min: 0, max: 80, axisLabel: { color: '#8b95a8' }, splitLine: { lineStyle: { color: '#1f2937' } }, nameTextStyle: { color: '#8b95a8' } },
+  series: [
+    { name: '一字板', type: 'line', data: yzRates, smooth: true, symbol: 'circle', symbolSize: 8, lineStyle: { width: 3, color: '#4ade80' }, itemStyle: { color: '#4ade80' } },
+    { name: 'T字板', type: 'line', data: tzRates, smooth: true, symbol: 'diamond', symbolSize: 8, lineStyle: { width: 3, color: '#ffb347' }, itemStyle: { color: '#ffb347' } },
+    { name: '换手板', type: 'line', data: hsRates, smooth: true, symbol: 'triangle', symbolSize: 8, lineStyle: { width: 3, color: '#60a5fa' }, itemStyle: { color: '#60a5fa' } },
+    { type: 'line', data: [46.8,46.8,46.8,46.8,46.8,46.8,46.8,46.8,46.8,46.8,46.8,46.8], lineStyle: { color: '#8b95a8', type: 'dashed', width: 1 }, symbol: 'none', tooltip: { show: false }, name: '平均胜率' }
+  ]
+});
+window.addEventListener('resize', function() {
+  chartMonth.resize(); chartType.resize(); chartGain.resize(); chartHs.resize(); chartPeak.resize(); chartYear.resize(); chartFailType.resize(); chartBuyable.resize(); chartFailPremium.resize(); chartExpectationFine.resize();
+});
+</script>
+</body>
+</html>
